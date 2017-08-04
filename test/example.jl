@@ -5,7 +5,7 @@ using SmolyakApprox
 function test_smolyak_approx()
 
   d  = 5  # Set the number of dimensions
-  mu = 3  # Set the level
+  mu = 3  # Set the level of approximation
 
   grid, multi_ind = smolyak_grid(chebyshev_gauss_lobatto,d,mu)  # Construct the Smolyak grid and the multi index
 

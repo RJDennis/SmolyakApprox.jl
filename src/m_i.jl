@@ -1,4 +1,4 @@
-function m_i{S<:Integer}(multi_index::Array{S,1})
+function m_i(multi_index::Array{S,1}) where {S<:Integer}
 
   m_node_number = similar(multi_index)
 

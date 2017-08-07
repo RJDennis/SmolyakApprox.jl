@@ -1,4 +1,4 @@
-function legendre_gauss_lobatto{S<:Integer}(n::S,domain = [1.0,-1.0])
+function legendre_gauss_lobatto(n::S,domain = [1.0,-1.0]) where {S<:Integer}
 
   # Construct the nodes on the [-1.0,1.0] interval
 
@@ -25,7 +25,7 @@ function legendre_gauss_lobatto{S<:Integer}(n::S,domain = [1.0,-1.0])
     p[:,1] = 1.0
 
     len = Inf
-    while len > eps(1.0)
+    while len > eps()
 
       nodes_old = copy(nodes)
       p[:,2] = nodes

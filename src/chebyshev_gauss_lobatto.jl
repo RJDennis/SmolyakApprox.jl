@@ -1,4 +1,4 @@
-function chebyshev_gauss_lobatto{S<:Integer}(n::S,domain = [1.0,-1.0])
+function chebyshev_gauss_lobatto(n::S,domain = [1.0,-1.0]) where {S<:Integer}
 
   # This also goes under the name of Clenshaw Curtis
 

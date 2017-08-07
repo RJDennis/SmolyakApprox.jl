@@ -1,4 +1,4 @@
-function smolyak_evaluate{T<:AbstractFloat,S<:Integer}(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2})
+function smolyak_evaluate(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders = m_i(unique_multi_index)-1
@@ -59,7 +59,7 @@ function smolyak_evaluate{T<:AbstractFloat,S<:Integer}(weights::Array{T,1},node:
 
 end
 
-function smolyak_evaluate{T<:AbstractFloat,S<:Integer}(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Array{T,2})
+function smolyak_evaluate(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Array{T,2}) where {T<:AbstractFloat,S<:Integer}
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders = m_i(unique_multi_index)-1

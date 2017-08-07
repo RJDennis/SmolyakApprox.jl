@@ -1,4 +1,4 @@
-function smolyak_derivative_finite_difference{T<:AbstractFloat,S<:Integer}(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2})
+function smolyak_derivative_finite_difference(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
 
   m = length(node)
   e  = eps(T)^(1/3)*maximum(abs,[node;one(T)])
@@ -19,7 +19,7 @@ function smolyak_derivative_finite_difference{T<:AbstractFloat,S<:Integer}(weigh
 
 end
 
-function smolyak_derivative_finite_difference{T<:AbstractFloat,S<:Integer}(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Array{T,2})
+function smolyak_derivative_finite_difference(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Array{T,2}) where {T<:AbstractFloat,S<:Integer}
 
   m = length(node)
   e  = eps(T)^(1/3)*maximum(abs,[node;one(T)])

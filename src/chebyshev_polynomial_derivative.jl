@@ -22,10 +22,11 @@ function chebyshev_polynomial_derivative(order::S,x::Array{T,1}) where {T<:Abstr
   polynomial      = ones(T,length(x),order+1)
   poly_deriv      = zeros(T,length(x),order+1)
 
-#  for i = 1:length(x)
-#    poly_deriv[i,:] = chebyshev_polynomial_derivative(order,x[i])
-#  end
+  for i = 1:length(x)
+    poly_deriv[i,:] = chebyshev_polynomial_derivative(order,x[i])
+  end
 
+#=
   for i = 2:order+1
 	for j = 1:length(x)
       if i == 2
@@ -37,6 +38,7 @@ function chebyshev_polynomial_derivative(order::S,x::Array{T,1}) where {T<:Abstr
       end
     end
   end
+=#
 
   return poly_deriv
 

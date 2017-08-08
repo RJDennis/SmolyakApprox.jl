@@ -1,4 +1,4 @@
-# The first two function relate to an anisotropic grid
+# The first two functions relate to an ansiotropic grid
 
 function smolyak_grid(node_type::Function,d::S,mu::Array{S,1}) where {S<:Integer}
 
@@ -59,6 +59,10 @@ end
 
 function smolyak_grid(node_type::Function,d::S,mu::Array{S,1},domain::Array{T,2}) where {S<:Integer, T<:AbstractFloat}
 
+  (nodes, multi_index) = smolyak_grid(node_type,d,mu)
+
+#=
+
   multi_index        = generate_multi_index(d,mu)
   unique_multi_index = sort(unique(multi_index))
   unique_node_number = m_i(unique_multi_index)
@@ -105,13 +109,21 @@ function smolyak_grid(node_type::Function,d::S,mu::Array{S,1},domain::Array{T,2}
     nodes = [nodes; new_nodes]
   end
 
+=#
+
   # Now scale the nodes to the desired domain
+
+  nodes = scale_nodes(nodes,domain)
+
+#=
 
   for i = 1:size(nodes,1)
     for j = 1:d
       nodes[i,j] = domain[2,j] + (1.0 + nodes[i,j])*(domain[1,j]-domain[2,j])/2
     end
   end
+
+=#
 
   return nodes, multi_index
 
@@ -181,6 +193,10 @@ end
 
 function smolyak_grid(node_type::Function,d::S,mu::S,domain::Array{T,2}) where {S<:Integer, T<:AbstractFloat}
 
+  (nodes, multi_index) = smolyak_grid(node_type,d,mu)
+
+#=
+
   multi_index        = generate_multi_index(d,mu)
   unique_multi_index = sort(unique(multi_index))
   unique_node_number = m_i(unique_multi_index)
@@ -227,13 +243,21 @@ function smolyak_grid(node_type::Function,d::S,mu::S,domain::Array{T,2}) where {
     nodes = [nodes; new_nodes]
   end
 
+=#
+
   # Now scale the nodes to the desired domain
+
+  nodes = scale_nodes(nodes,domain)
+
+#=
 
   for i = 1:size(nodes,1)
     for j = 1:d
       nodes[i,j] = domain[2,j] + (1.0 + nodes[i,j])*(domain[1,j]-domain[2,j])/2
     end
   end
+
+=#
 
   return nodes, multi_index
 

@@ -1,4 +1,4 @@
-function scale_nodes(nodes::Array{T,1},domain) where {T<:AbstractFloat}
+function scale_nodes(nodes::Array{T,1},domain::Array{T,1}) where {T<:AbstractFloat}
 
   for i = 1:length(nodes)
     nodes[i] = domain[2] + (1.0+nodes[i])*(domain[1]-domain[2])/2

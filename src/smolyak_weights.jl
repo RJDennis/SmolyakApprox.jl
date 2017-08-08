@@ -1,4 +1,4 @@
-function smolyak_weights(y::Array{T,1},nodes::Array{T,2},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_weights(y::AbstractArray{T,1},nodes::Array{T,2},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
 
   interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
 
@@ -64,18 +64,10 @@ function smolyak_weights(y::Array{T,1},nodes::Array{T,2},multi_index::Array{S,2}
 
 end
 
-function smolyak_weights(y::Array{T,1},nodes::Array{T,2},multi_index::Array{S,2},domain::Array{T,2}) where {T<:AbstractFloat,S<:Integer}
-
-  interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
-
-  unique_multi_index = sort(unique(multi_index))
-  unique_orders      = m_i(unique_multi_index)-1
-
-#  m_node_number = m_i(multi_index)
-#  multi_orders  = m_node_number-1
-#  unique_orders = sort(unique(multi_orders))
+function smolyak_weights(y::AbstractArray{T,1},nodes::Array{T,2},multi_index::Array{S,2},domain::Array{T,2}) where {T<:AbstractFloat,S<:Integer}
 
   # Normalize nodes to the [-1.0 1.0] interval
+
   nodes = copy(nodes)
   for i = 1:size(nodes,1)
     for j = 1:size(domain,2)
@@ -86,6 +78,19 @@ function smolyak_weights(y::Array{T,1},nodes::Array{T,2},multi_index::Array{S,2}
       end
     end
   end
+
+  weights = smolyak_weights(y,nodes,multi_index)
+
+#=
+
+  interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
+
+  unique_multi_index = sort(unique(multi_index))
+  unique_orders      = m_i(unique_multi_index)-1
+
+#  m_node_number = m_i(multi_index)
+#  multi_orders  = m_node_number-1
+#  unique_orders = sort(unique(multi_orders))
 
   # Below we do the following things:
 
@@ -137,6 +142,8 @@ function smolyak_weights(y::Array{T,1},nodes::Array{T,2},multi_index::Array{S,2}
   end
 
   weights = interpolation_matrix\y # An alternative is to compute the inverse of interpolation_matix, which needs to be done just once, and feed that inverse into the weights function
+
+=#
 
   return weights
 
@@ -210,16 +217,8 @@ end
 
 function smolyak_inverse_interpolation_matrix(nodes::Array{T,2},multi_index::Array{S,2},domain::Array{T,2}) where {T<:AbstractFloat,S<:Integer}
 
-  interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
-
-  unique_multi_index = sort(unique(multi_index))
-  unique_orders      = m_i(unique_multi_index)-1
-
-#  m_node_number = m_i(multi_index)
-#  multi_orders  = m_node_number-1
-#  unique_orders = sort(unique(multi_orders))
-
   # Normalize nodes to the [-1.0 1.0] interval
+
   nodes = copy(nodes)
   for i = 1:size(nodes,1)
     for j = 1:size(domain,2)
@@ -230,6 +229,19 @@ function smolyak_inverse_interpolation_matrix(nodes::Array{T,2},multi_index::Arr
       end
     end
   end
+
+  inverse_interpolation_matrix = smolyak_inverse_interpolation_matrix(nodes,multi_index)
+
+#=
+
+  interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
+
+  unique_multi_index = sort(unique(multi_index))
+  unique_orders      = m_i(unique_multi_index)-1
+
+#  m_node_number = m_i(multi_index)
+#  multi_orders  = m_node_number-1
+#  unique_orders = sort(unique(multi_orders))
 
   # Below we do the following things:
 
@@ -279,14 +291,16 @@ function smolyak_inverse_interpolation_matrix(nodes::Array{T,2},multi_index::Arr
     interpolation_matrix[k,:] = polynomials[:]
 
   end
-  
+
   inverse_interpolation_matrix = inv(interpolation_matrix)
+
+=#
 
   return inverse_interpolation_matrix
 
 end
 
-function smolyak_weights(y::Array{T,1},inverse_interpolation_matrix::Array{T,2}) where {T<:AbstractFloat}
+function smolyak_weights(y::AbstractArray{T,1},inverse_interpolation_matrix::Array{T,2}) where {T<:AbstractFloat}
 
   weights = inverse_interpolation_matrix*y
 

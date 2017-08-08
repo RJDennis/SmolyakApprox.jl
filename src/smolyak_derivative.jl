@@ -73,13 +73,6 @@ end
 
 function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Array{T,2}) where {T<:AbstractFloat,S<:Integer}
 
-  unique_multi_index = sort(unique(multi_index))
-  unique_orders = m_i(unique_multi_index)-1
-
-#  m_node_number = m_i(multi_index)
-#  multi_orders  = m_node_number-1
-#  unique_orders = sort(unique(multi_orders))
-
   node = copy(node)
   for j = 1:size(domain,2)
     if domain[1,j] == domain[2,j]
@@ -88,6 +81,17 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
       node[j] = 2*(node[j]-domain[2,j])/(domain[1,j]-domain[2,j])-one(T)
     end
   end
+
+  evaluated_derivative = smolyak_derivative(weights,node,multi_index)
+
+#=
+
+  unique_multi_index = sort(unique(multi_index))
+  unique_orders = m_i(unique_multi_index)-1
+
+#  m_node_number = m_i(multi_index)
+#  multi_orders  = m_node_number-1
+#  unique_orders = sort(unique(multi_orders))
 
   # Below we do the following things:
 
@@ -149,6 +153,8 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
     end
 
   end
+
+=#
 
   return evaluated_derivative
 

@@ -222,7 +222,7 @@ function smolyak_inverse_interpolation_matrix(nodes::Array{T,2},multi_index::Arr
   # Normalize nodes to the [-1.0 1.0] interval
 
   for i = 1:size(nodes,1)
-    for j = 1:d
+    for j = 1:size(nodes,2)
       if domain[1,j] == domain[2,j]
         node[i,j] = (domain[1,j]+domain[2,j])/2
       else

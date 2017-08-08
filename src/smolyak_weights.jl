@@ -224,9 +224,9 @@ function smolyak_inverse_interpolation_matrix(nodes::Array{T,2},multi_index::Arr
   for i = 1:size(nodes,1)
     for j = 1:size(nodes,2)
       if domain[1,j] == domain[2,j]
-        node[i,j] = (domain[1,j]+domain[2,j])/2
+        nodes[i,j] = (domain[1,j]+domain[2,j])/2
       else
-        node[i,j] = 2*(node[i,j]-domain[2,j])/(domain[1,j]-domain[2,j])-one(T)
+        nodes[i,j] = 2*(nodes[i,j]-domain[2,j])/(domain[1,j]-domain[2,j])-one(T)
       end
     end
   end

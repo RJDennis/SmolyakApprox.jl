@@ -220,9 +220,9 @@ function smolyak_inverse_interpolation_matrix(nodes::Array{T,2},multi_index::Arr
 #  unique_orders = sort(unique(multi_orders))
 
   # Normalize nodes to the [-1.0 1.0] interval
-
+  nodes = copy(nodes)
   for i = 1:size(nodes,1)
-    for j = 1:size(nodes,2)
+    for j = 1:size(domain,2)
       if domain[1,j] == domain[2,j]
         nodes[i,j] = (domain[1,j]+domain[2,j])/2
       else
@@ -279,7 +279,7 @@ function smolyak_inverse_interpolation_matrix(nodes::Array{T,2},multi_index::Arr
     interpolation_matrix[k,:] = polynomials[:]
 
   end
-
+  
   inverse_interpolation_matrix = inv(interpolation_matrix)
 
   return inverse_interpolation_matrix

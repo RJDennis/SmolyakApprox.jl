@@ -1,4 +1,4 @@
-function smolyak_weights{T<:AbstractFloat,S<:Int}(y::Array{T,1},nodes::Array{T,2},multi_index::Array{S,2})
+function smolyak_weights(y::Array{T,1},nodes::Array{T,2},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
 
   interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
 
@@ -64,7 +64,7 @@ function smolyak_weights{T<:AbstractFloat,S<:Int}(y::Array{T,1},nodes::Array{T,2
 
 end
 
-function smolyak_weights{T<:AbstractFloat,S<:Int}(y::Array{T,1},nodes::Array{T,2},multi_index::Array{S,2},domain::Array{T,2})
+function smolyak_weights(y::Array{T,1},nodes::Array{T,2},multi_index::Array{S,2},domain::Array{T,2}) where {T<:AbstractFloat,S<:Integer}
 
   interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
 
@@ -142,7 +142,7 @@ function smolyak_weights{T<:AbstractFloat,S<:Int}(y::Array{T,1},nodes::Array{T,2
 
 end
 
-function smolyak_inverse_interpolation_matrix{T<:AbstractFloat,S<:Int}(nodes::Array{T,2},multi_index::Array{S,2})
+function smolyak_inverse_interpolation_matrix(nodes::Array{T,2},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
 
   interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
 
@@ -208,7 +208,7 @@ function smolyak_inverse_interpolation_matrix{T<:AbstractFloat,S<:Int}(nodes::Ar
 
 end
 
-function smolyak_inverse_interpolation_matrix{T<:AbstractFloat,S<:Int}(nodes::Array{T,2},multi_index::Array{S,2},domain::Array{T,2})
+function smolyak_inverse_interpolation_matrix(nodes::Array{T,2},multi_index::Array{S,2},domain::Array{T,2}) where {T<:AbstractFloat,S<:Integer}
 
   interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
 
@@ -286,7 +286,7 @@ function smolyak_inverse_interpolation_matrix{T<:AbstractFloat,S<:Int}(nodes::Ar
 
 end
 
-function smolyak_weights{T<:AbstractFloat}(y::Array{T,1},inverse_interpolation_matrix::Array{T,2})
+function smolyak_weights(y::Array{T,1},inverse_interpolation_matrix::Array{T,2}) where {T<:AbstractFloat}
 
   weights = inverse_interpolation_matrix*y
 

@@ -1,4 +1,4 @@
-function smolyak_derivative{T<:AbstractFloat,S<:Integer}(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2})
+function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders = m_i(unique_multi_index)-1
@@ -71,7 +71,7 @@ function smolyak_derivative{T<:AbstractFloat,S<:Integer}(weights::Array{T,1},nod
 
 end
 
-function smolyak_derivative{T<:AbstractFloat,S<:Integer}(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Array{T,2})
+function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Array{T,2}) where {T<:AbstractFloat,S<:Integer}
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders = m_i(unique_multi_index)-1
@@ -148,48 +148,6 @@ function smolyak_derivative{T<:AbstractFloat,S<:Integer}(weights::Array{T,1},nod
       evaluated_derivative[k] += (2.0/(domain[1,k]-domain[2,k]))*polynomials[k][i]*weights[i]
     end
 
-  end
-
-  return evaluated_derivative
-
-end
-
-function smolyak_derivative_finite_difference{T<:AbstractFloat,S<:Integer}(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2})
-
-  m = length(node)
-  e  = eps(T)^(1/3)*maximum(abs,[node;one(T)])
-  dh = eye(m)*e
-
-  evaluated_derivative = zeros(1,m)
-
-  for i = 1:m
-    f1 = smolyak_evaluate(weights,node+2*dh[:,i],multi_index)
-    f2 = smolyak_evaluate(weights,node+dh[:,i],multi_index)
-    f3 = smolyak_evaluate(weights,node-dh[:,i],multi_index)
-    f4 = smolyak_evaluate(weights,node-2*dh[:,i],multi_index)
-    evaluated_derivative[i] = (-f1+8*f2-8*f3+f4)/(12*e)
-#    evaluated_derivative[i] = (f2-f3)/(2*e)
-  end
-
-  return evaluated_derivative
-
-end
-
-function smolyak_derivative_finite_difference{T<:AbstractFloat,S<:Integer}(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Array{T,2})
-
-  m = length(node)
-  e  = eps(T)^(1/3)*maximum(abs,[node;one(T)])
-  dh = eye(m)*e
-
-  evaluated_derivative = zeros(1,m)
-
-  for i = 1:m
-    f1 = smolyak_evaluate(weights,node+2*dh[:,i],multi_index,domain)
-    f2 = smolyak_evaluate(weights,node+dh[:,i],multi_index,domain)
-    f3 = smolyak_evaluate(weights,node-dh[:,i],multi_index,domain)
-    f4 = smolyak_evaluate(weights,node-2*dh[:,i],multi_index,domain)
-    evaluated_derivative[i] = (2.0/(domain[1,i]-domain[2,i]))*(-f1+8*f2-8*f3+f4)/(12*e)
-#    evaluated_derivative[i] = (2.0/(domain[1,i]-domain[2,i]))*(f2-f3)/(2*e)
   end
 
   return evaluated_derivative

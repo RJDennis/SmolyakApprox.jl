@@ -12,6 +12,7 @@ include("m_i.jl")
 include("chebyshev_polynomial_derivative.jl")
 include("smolyak_derivative_finite_difference.jl")
 include("smolyak_derivative.jl")
+include("scale_nodes.jl")
 
 export chebyshev_gauss_lobatto,
        legendre_gauss_lobatto,

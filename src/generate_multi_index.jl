@@ -1,4 +1,4 @@
-# This function relates to the anisotropic case
+# This function relates to the ansiotropic case
 
 function generate_multi_index(d::S,mu::Array{S,1}) where {S<:Integer}
 
@@ -17,7 +17,7 @@ function generate_multi_index(d::S,mu::Array{S,1}) where {S<:Integer}
 
 end
 
-# The function below relates the isotropic case
+# The function below relates to the isotropic case
 
 function generate_multi_index(d::S,mu::S) where {S<:Integer}
 

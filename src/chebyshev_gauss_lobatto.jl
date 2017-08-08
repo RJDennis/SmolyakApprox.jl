@@ -32,7 +32,8 @@ function chebyshev_gauss_lobatto(n::S,domain = [1.0,-1.0]) where {S<:Integer}
 
   # Scale the nodes to the desired domain
 
-  nodes = domain[2] .+ (1.0 .+ nodes)*((domain[1]-domain[2])/2)
+  nodes = scale_nodes(nodes,domain)
+#  nodes = domain[2] .+ (1.0 .+ nodes)*((domain[1]-domain[2])/2)
 
   return nodes, weights
 

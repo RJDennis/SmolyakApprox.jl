@@ -19,7 +19,6 @@ export chebyshev_gauss_lobatto,
        smolyak_inverse_interpolation_matrix,
        smolyak_evaluate,
        chebyshev_polynomial_derivative,
-       smolyak_derivative_finite_difference,
        smolyak_derivative
 
 end

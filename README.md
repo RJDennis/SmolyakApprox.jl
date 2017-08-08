@@ -20,7 +20,7 @@ With the grid and multi-index in hand, we van compute the weights, or coefficien
 
 weights = smolyak_weights(y,grid,multi_ind,domain)
 
-where y is a 1d-array containing the evaluations at each grid point of the function being approximated.  Computation of the weights can be made more efficients by computing the inverse interpolation matrix
+where y is a 1d-array containing the evaluations at each grid point of the function being approximated.  Computation of the weights can be made more efficient by computing the inverse interpolation matrix (this generally needs to be done only once, outside any loops)
 
 inv_interp_mat = smolyak_inverse_interpolation_matrix(grid,multi_ind,domain)
 

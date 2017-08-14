@@ -1,4 +1,4 @@
-function smolyak_find_bracket{T<:AbstractFloat}(x::Array{T,1},nodes::Array{T,2})
+function smolyak_find_bracket(x::Array{T,1},nodes::Array{T,2}) where T<:AbstractFloat
 
   n = size(nodes,1)
   num_points = 2^size(nodes,2)
@@ -49,7 +49,7 @@ function smolyak_find_bracket{T<:AbstractFloat}(x::Array{T,1},nodes::Array{T,2})
 
 end
 
-function smolyak_bracket_evaluate{T<:AbstractFloat}(y::AbstractArray{T,1},nodes::Array{T,2},x::Array{T,1})
+function smolyak_bracket_evaluate(y::AbstractArray{T,1},nodes::Array{T,2},x::Array{T,1}) where T<:AbstractFloat
 
   (index_vector_k,dist_vector_k) = smolyak_find_bracket(x,nodes)
   k = size(index_vector_k,1)

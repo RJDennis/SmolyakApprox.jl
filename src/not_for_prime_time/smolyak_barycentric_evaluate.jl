@@ -1,4 +1,4 @@
-function smolyak_barycentric_points{T<:AbstractFloat,S<:Integer}(nodes::Array{T,2},x::Array{T,1},num_points::S)
+function smolyak_barycentric_points(nodes::Array{T,2},x::Array{T,1},num_points::S) where {T<:AbstractFloat,S<:Integer}
 
   n = size(nodes,1)
 
@@ -24,7 +24,7 @@ function smolyak_barycentric_points{T<:AbstractFloat,S<:Integer}(nodes::Array{T,
 
 end
 
-function smolyak_barycentric_evaluate{T<:AbstractFloat}(y::AbstractArray{T,1},nodes::Array{T,2},x::Array{T,1})
+function smolyak_barycentric_evaluate(y::AbstractArray{T,1},nodes::Array{T,2},x::Array{T,1}) where T<:AbstractFloat
 
   k = size(nodes,2)+1
   index_vector_k = smolyak_barycentric_points(nodes,x,k)

@@ -1,4 +1,4 @@
-function smolyak_knn_points{T<:AbstractFloat,S<:Integer}(nodes::Array{T,2},x::Array{T,1},num_points::S)
+function smolyak_knn_points(nodes::Array{T,2},x::Array{T,1},num_points::S) where {T<:AbstractFloat,S<:Integer}
 
   n = size(nodes,1)
 
@@ -26,7 +26,7 @@ function smolyak_knn_points{T<:AbstractFloat,S<:Integer}(nodes::Array{T,2},x::Ar
 
 end
 
-function smolyak_knn_evaluate{T<:AbstractFloat}(y::AbstractArray{T,1},nodes::Array{T,2},x::Array{T,1},k = 2*size(nodes,2)+1)
+function smolyak_knn_evaluate(y::AbstractArray{T,1},nodes::Array{T,2},x::Array{T,1},k = 2*size(nodes,2)+1) where T<:AbstractFloat
 
   (index_vector_k,dist_vector_k) = smolyak_knn_points(nodes,x,k)
 

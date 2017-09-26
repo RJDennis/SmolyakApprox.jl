@@ -1,6 +1,8 @@
-function legendre_gauss_lobatto(n::S,domain = [1.0,-1.0]) where {S<:Integer}
+function legendre_gauss_lobatto{S<:Integer}(n::S,domain = [1.0,-1.0])
 
   # Construct the nodes on the [-1.0,1.0] interval
+
+  p = zeros(n,n)
 
   if n == 1
 
@@ -21,11 +23,10 @@ function legendre_gauss_lobatto(n::S,domain = [1.0,-1.0]) where {S<:Integer}
       nodes[round(Int,(n+1)/2)] = 0.0
     end
 
-    p = zeros(n,n)
     p[:,1] = 1.0
 
     len = Inf
-    while len > eps()
+    while len > eps(1.0)
 
       nodes_old = copy(nodes)
       p[:,2] = nodes
@@ -43,8 +44,7 @@ function legendre_gauss_lobatto(n::S,domain = [1.0,-1.0]) where {S<:Integer}
 
   # Scale the nodes to the desired domain
 
-  nodes = scale_nodes(nodes,domain)
-#  nodes = domain[2] .+ (1.0 .+ nodes)*(domain[1]-domain[2])/2
+  nodes = domain[2] .+ (1.0 .+ nodes)*(domain[1]-domain[2])/2
 
   # Compute the weights
 

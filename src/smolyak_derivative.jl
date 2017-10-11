@@ -61,6 +61,8 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
 
     end
 
+    println(polynomials)
+
     for i = 1:length(polynomials[k])
       evaluated_derivative[k] += polynomials[k][i]*weights[i]
     end
@@ -120,6 +122,7 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
     end
 
     polynomials = [polynomials; new_polynomials]
+    println(polynomials)
 
     for i = 1:length(polynomials)
       evaluated_derivative += polynomials[i]*weights[i]

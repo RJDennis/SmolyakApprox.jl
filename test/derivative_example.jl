@@ -13,7 +13,7 @@ function test_smolyak_derivative()
 
   function test(grid)
 
-    y = (grid[:,1]+1).^0.1#.*exp.(grid[:,2]).*log.(grid[:,3]+2).^0.2.*(grid[:,4]+2).^0.8.*(grid[:,5]+7).^0.1
+    y = (grid[:,1]+1).^0.1.*exp.(grid[:,2]).*log.(grid[:,3]+2).^0.2.*(grid[:,4]+2).^0.8.*(grid[:,5]+7).^0.1
 
     return y
 
@@ -41,9 +41,10 @@ function test_smolyak_derivative()
 
   derivatives_1 = smolyak_derivative_finite_difference(weights,point,multi_ind)
   derivatives_2 = smolyak_derivative(weights,point,multi_ind)
-  derivatives_3 = [smolyak_derivative(weights,point,multi_ind,1) smolyak_derivative(weights,point,multi_ind,2) smolyak_derivative(weights,point,multi_ind,3) smolyak_derivative(weights,point,multi_ind,4) smolyak_derivative(weights,point,multi_ind,5)]
+  derivatives_3 = smolyak_derivative_t(weights,point,multi_ind,[1])
+  derivatives_4 = smolyak_derivative_t(weights,point,multi_ind,[1,2,3,4,5])
 
-  return derivatives_1, derivatives_2, derivatives_3
+  return derivatives_1, derivatives_2, derivatives_3, derivatives_4
 
 end
 

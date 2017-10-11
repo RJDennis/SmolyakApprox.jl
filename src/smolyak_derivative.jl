@@ -3,17 +3,6 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
   unique_multi_index = sort(unique(multi_index))
   unique_orders = m_i(unique_multi_index)-1
 
-#  m_node_number = m_i(multi_index)
-#  multi_orders  = m_node_number-1
-#  unique_orders = sort(unique(multi_orders))
-
-  # Below we do the following things:
-
-  #   Generate the polynomial terms for each order
-  #   Generate the unique polynomial terms introduced at each higher order
-  #   Combine the polynomial terms to construct the first row of the interpolation matrix
-  #   Iterate over the nodes, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
-
   # Here we construct the base polynomials
 
   base_polynomials = Array{Array{T,2}}(length(unique_orders))
@@ -60,8 +49,6 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
       polynomials[k] = [polynomials[k]; new_polynomials[k]]
 
     end
-
-    println(polynomials)
 
     for i = 1:length(polynomials[k])
       evaluated_derivative[k] += polynomials[k][i]*weights[i]

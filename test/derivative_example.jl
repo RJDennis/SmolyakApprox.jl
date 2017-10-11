@@ -41,8 +41,8 @@ function test_smolyak_derivative()
 
   derivatives_1 = smolyak_derivative_finite_difference(weights,point,multi_ind)
   derivatives_2 = smolyak_derivative(weights,point,multi_ind)
-  derivatives_3 = smolyak_derivative_t(weights,point,multi_ind,[1])
-  derivatives_4 = smolyak_derivative_t(weights,point,multi_ind,[1,2,3,4,5])
+  derivatives_3 = smolyak_derivative(weights,point,multi_ind,[1])
+  derivatives_4 = smolyak_derivative(weights,point,multi_ind,[1,2,3,4,5])
 
   return derivatives_1, derivatives_2, derivatives_3, derivatives_4
 

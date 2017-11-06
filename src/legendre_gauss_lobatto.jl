@@ -1,6 +1,5 @@
 function legendre_gauss_lobatto(n::S,domain = [1.0,-1.0]) where S <: Integer
 
-
   # Construct the nodes on the [-1.0,1.0] interval
 
   p = zeros(n,n)

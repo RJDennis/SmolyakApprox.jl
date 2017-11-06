@@ -1,7 +1,7 @@
 function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
 
   unique_multi_index = sort(unique(multi_index))
-  unique_orders = m_i(unique_multi_index)-1
+  unique_orders = m_i(unique_multi_index).-1
 
   # Here we construct the base polynomials
 
@@ -80,7 +80,7 @@ end
 function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},pos::Array{S,1}) where {T<:AbstractFloat,S<:Integer}
 
   unique_multi_index = sort(unique(multi_index))
-  unique_orders = m_i(unique_multi_index)-1
+  unique_orders = m_i(unique_multi_index).-1
 
   # Here we construct the base polynomials
 

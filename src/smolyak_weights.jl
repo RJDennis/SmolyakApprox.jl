@@ -3,7 +3,7 @@ function smolyak_weights(y::AbstractArray{T,1},nodes::Array{T,2},multi_index::Ar
   interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
 
   unique_multi_index = sort(unique(multi_index))
-  unique_orders      = m_i(unique_multi_index)-1
+  unique_orders      = m_i(unique_multi_index).-1
 
 #  m_node_number = m_i(multi_index)
 #  multi_orders  = m_node_number-1

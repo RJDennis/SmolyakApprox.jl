@@ -1,7 +1,7 @@
 function smolyak_evaluate(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
 
   unique_multi_index = sort(unique(multi_index))
-  unique_orders = m_i(unique_multi_index)-1
+  unique_orders = m_i(unique_multi_index).-1
 
 #  m_node_number = m_i(multi_index)
 #  multi_orders  = m_node_number-1

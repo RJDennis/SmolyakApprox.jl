@@ -10,7 +10,7 @@ include("generate_multi_index.jl")
 include("combine_nodes.jl")
 include("m_i.jl")
 include("chebyshev_polynomial_derivative.jl")
-#include("smolyak_derivative_finite_difference.jl")
+include("smolyak_derivative_finite_difference.jl")
 include("smolyak_derivative.jl")
 include("scale_nodes.jl")
 
@@ -22,7 +22,7 @@ export chebyshev_gauss_lobatto,
        smolyak_inverse_interpolation_matrix,
        smolyak_evaluate,
        chebyshev_polynomial_derivative,
-#       smolyak_derivative_finite_difference,
+       smolyak_derivative_finite_difference,
        smolyak_derivative
 
 end

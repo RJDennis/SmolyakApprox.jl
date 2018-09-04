@@ -147,17 +147,17 @@ function smolyak_grid(node_type::Function,d::S,mu::S) where {S<:Integer}
 
   # Create base nodes to be used in the sparse grid
 
-  base_nodes   = Array{Array{T,1}}(length(unique_node_number))
-  base_weights = Array{Array{T,1}}(length(unique_node_number))
+  base_nodes   = Array{Array{T,1}}(undef,length(unique_node_number))
+  base_weights = Array{Array{T,1}}(undef,length(unique_node_number))
   for i = 1:length(unique_node_number)
     base_nodes[i], base_weights[i] = node_type(unique_node_number[i])
   end
 
   # Determine the unique nodes introduced at each higher level
 
-  unique_base_nodes = Array{Array{T,1}}(length(unique_node_number))
+  unique_base_nodes = Array{Array{T,1}}(undef,length(unique_node_number))
   for i = length(unique_node_number):-1:2
-    temp_array = Array{T}(1)
+    temp_array = Array{T}(undef,1)
     for j = 1:length(base_nodes[i])
       if !in(base_nodes[i][j],base_nodes[i-1])
         push!(temp_array,base_nodes[i][j])

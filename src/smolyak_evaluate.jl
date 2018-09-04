@@ -16,14 +16,14 @@ function smolyak_evaluate(weights::Array{T,1},node::Array{T,1},multi_index::Arra
 
   # Here we construct the base polynomials
 
-  base_polynomials = Array{Array{T,2}}(length(unique_orders))
+  base_polynomials = Array{Array{T,2}}(undef,length(unique_orders))
   for i = 1:length(unique_orders)
     base_polynomials[i] = chebyshev_polynomial(unique_orders[i],node)
   end
 
   # Compute the unique polynomial terms from the base polynomials
 
-  unique_base_polynomials = Array{Array{T,2}}(length(unique_orders))
+  unique_base_polynomials = Array{Array{T,2}}(undef,length(unique_orders))
   for i = length(unique_orders):-1:2
     unique_base_polynomials[i] = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
   end

@@ -23,8 +23,8 @@ function generate_multi_index(d::S,mu::S) where {S<:Integer}
 
   multi_index = ones(S,1,d)
   for i = 2:(mu+1)^d
-
-    candidate_index = collect(ind2sub((repeat([mu+1],inner = d)...,),i))
+    candidate_index = collect(Tuple(CartesianIndices((repeat([mu+1],inner = d)...,))[i]))
+#    candidate_index = collect(ind2sub((repeat([mu+1],inner = d)...,),i))
     if sum(candidate_index) <= d+mu
       multi_index = [multi_index; candidate_index']
     end

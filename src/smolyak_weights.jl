@@ -20,14 +20,14 @@ function smolyak_weights(y::AbstractArray{T,1},nodes::Array{T,2},multi_index::Ar
 
     # Construct the base polynomials
 
-    base_polynomials = Array{Array{T,2}}(length(unique_orders))
+    base_polynomials = Array{Array{T,2}}(undef,length(unique_orders))
     for i = 1:length(unique_orders)
       base_polynomials[i] = chebyshev_polynomial(unique_orders[i],nodes[k,:])
     end
 
     # Compute the unique polynomial terms from the base polynomials
 
-    unique_base_polynomials = Array{Array{T,2}}(length(unique_orders))
+    unique_base_polynomials = Array{Array{T,2}}(undef,length(unique_orders))
     for i = length(unique_orders):-1:2
       unique_base_polynomials[i] = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
     end
@@ -171,14 +171,14 @@ function smolyak_inverse_interpolation_matrix(nodes::Array{T,2},multi_index::Arr
 
     # Construct the base polynomials
 
-    base_polynomials = Array{Array{T,2}}(length(unique_orders))
+    base_polynomials = Array{Array{T,2}}(undef,length(unique_orders))
     for i = 1:length(unique_orders)
       base_polynomials[i] = chebyshev_polynomial(unique_orders[i],nodes[k,:])
     end
 
     # Compute the unique polynomial terms from the base polynomials
 
-    unique_base_polynomials = Array{Array{T,2}}(length(unique_orders))
+    unique_base_polynomials = Array{Array{T,2}}(undef,length(unique_orders))
     for i = length(unique_orders):-1:2
       unique_base_polynomials[i] = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
     end

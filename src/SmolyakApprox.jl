@@ -1,4 +1,5 @@
 module SmolyakApprox
+using LinearAlgebra
 
 include("chebyshev_gauss_lobatto.jl")
 include("legendre_gauss_lobatto.jl")

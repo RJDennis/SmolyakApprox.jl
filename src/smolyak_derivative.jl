@@ -5,8 +5,8 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
 
   # Here we construct the base polynomials
 
-  base_polynomials = Array{Array{T,2}}(length(unique_orders))
-  base_polynomial_derivatives = Array{Array{T,2}}(length(unique_orders))
+  base_polynomials = Array{Array{T,2}}(undef,length(unique_orders))
+  base_polynomial_derivatives = Array{Array{T,2}}(undef,length(unique_orders))
   for i = 1:length(unique_orders)
     base_polynomials[i] = chebyshev_polynomial(unique_orders[i],node)
     base_polynomial_derivatives[i] = chebyshev_polynomial_derivative(unique_orders[i],node)
@@ -14,8 +14,8 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
 
   # Compute the unique polynomial terms from the base polynomials
 
-  unique_base_polynomials = Array{Array{T,2}}(length(unique_orders))
-  unique_base_polynomial_derivatives = Array{Array{T,2}}(length(unique_orders))
+  unique_base_polynomials = Array{Array{T,2}}(undef,length(unique_orders))
+  unique_base_polynomial_derivatives = Array{Array{T,2}}(undef,length(unique_orders))
   for i = length(unique_orders):-1:2
     unique_base_polynomials[i] = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
     unique_base_polynomial_derivatives[i] = base_polynomial_derivatives[i][:,size(base_polynomial_derivatives[i-1],2)+1:end]
@@ -27,8 +27,8 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
 
   evaluated_derivative = zeros(1,length(node))
 
-  new_polynomials = Array{Array{T,1}}(length(node))
-  polynomials     = Array{Array{T,1}}(length(node))
+  new_polynomials = Array{Array{T,1}}(undef,length(node))
+  polynomials     = Array{Array{T,1}}(undef,length(node))
 
   for k = 1:length(node)
     new_polynomials[k] = (k!==1)*unique_base_polynomials[multi_index[1,1]][1,:]+(k==1)*unique_base_polynomial_derivatives[multi_index[1,1]][1,:]
@@ -84,8 +84,8 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
 
   # Here we construct the base polynomials
 
-  base_polynomials = Array{Array{T,2}}(length(unique_orders))
-  base_polynomial_derivatives = Array{Array{T,2}}(length(unique_orders))
+  base_polynomials = Array{Array{T,2}}(undef,length(unique_orders))
+  base_polynomial_derivatives = Array{Array{T,2}}(undef,length(unique_orders))
   for i = 1:length(unique_orders)
     base_polynomials[i] = chebyshev_polynomial(unique_orders[i],node)
     base_polynomial_derivatives[i] = chebyshev_polynomial_derivative(unique_orders[i],node)
@@ -93,8 +93,8 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
 
   # Compute the unique polynomial terms from the base polynomials
 
-  unique_base_polynomials = Array{Array{T,2}}(length(unique_orders))
-  unique_base_polynomial_derivatives = Array{Array{T,2}}(length(unique_orders))
+  unique_base_polynomials = Array{Array{T,2}}(undef,length(unique_orders))
+  unique_base_polynomial_derivatives = Array{Array{T,2}}(undef,length(unique_orders))
   for i = length(unique_orders):-1:2
     unique_base_polynomials[i] = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
     unique_base_polynomial_derivatives[i] = base_polynomial_derivatives[i][:,size(base_polynomial_derivatives[i-1],2)+1:end]
@@ -106,8 +106,8 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
 
   evaluated_derivative = zeros(1,length(pos))
 
-  new_polynomials = Array{Array{T,1}}(length(pos))
-  polynomials     = Array{Array{T,1}}(length(pos))
+  new_polynomials = Array{Array{T,1}}(undef,length(pos))
+  polynomials     = Array{Array{T,1}}(undef,length(pos))
 
   l = 0
   for k in pos

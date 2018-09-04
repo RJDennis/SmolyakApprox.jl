@@ -2,7 +2,7 @@ function smolyak_derivative_finite_difference(weights::Array{T,1},node::Array{T,
 
   m = length(node)
   e  = eps(T)^(1/3)*maximum(abs,[node;one(T)])
-  dh = eye(m)*e
+  dh = Matrix{T}(I,m,m)*e
 
   evaluated_derivative = zeros(1,m)
 

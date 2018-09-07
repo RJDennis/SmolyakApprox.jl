@@ -7,7 +7,7 @@ function chebyshev_gauss_lobatto(n::S,domain = [1.0,-1.0]) where {S<:Integer}
   if n == 1
 
     nodes   = [0.0]
-    weights = [2.0]
+    weights = [pi]
 
   else
 

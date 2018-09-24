@@ -7,7 +7,7 @@ function generate_multi_index(d::S,mu::Array{S,1}) where {S<:Integer}
   for i = 2:(max_mu+1)^d
 
     candidate_index = collect(Tuple(CartesianIndices((repeat([max_mu+1],inner = d)...,))[i]))
-    if sum(candidate_index) <= d+max_mu && sum(candidate_index .<= mu+1) == d
+    if sum(candidate_index) <= d+max_mu && sum(candidate_index .<= mu.+1) == d
       multi_index = [multi_index; candidate_index']
     end
 

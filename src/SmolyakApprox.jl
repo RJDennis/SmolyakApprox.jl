@@ -14,6 +14,7 @@ include("chebyshev_polynomial_derivative.jl")
 include("smolyak_derivative_finite_difference.jl")
 include("smolyak_derivative.jl")
 include("scale_nodes.jl")
+include("smolyak_full_grid.jl")
 
 export chebyshev_gauss_lobatto,
        legendre_gauss_lobatto,
@@ -24,6 +25,9 @@ export chebyshev_gauss_lobatto,
        smolyak_evaluate,
        chebyshev_polynomial_derivative,
        smolyak_derivative_finite_difference,
-       smolyak_derivative
+       smolyak_derivative,
+       smolyak_grid_full,
+       smolyak_weights_full,
+       smolyak_evaluate_full
 
 end

@@ -43,6 +43,7 @@ function test_smolyak_approx()
 
   mu = [3, 2, 2, 2, 3]
   grid, multi_ind = smolyak_grid(chebyshev_gauss_lobatto,d,mu)  # Construct the Smolyak grid and the multi index
+  y = test(grid)
   weights = smolyak_weights(y,grid,multi_ind)                   # Compute the Smolyak weights
   y_hat_ansio = smolyak_evaluate(weights,point,multi_ind)       # Evaluate the approximated function
 

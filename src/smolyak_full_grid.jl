@@ -49,9 +49,9 @@ function smolyak_grid_full(node_type::Function,d::S,mu::S) where {S<:Integer}
 
   # Select the relevant polynomials from the multi index
 
-  ii = (sum(multi_ind,dims=2) .>= max.(d,mu.+1)).*(sum(multi_ind,dims=2) .<= d.+mu)
+  ii = (sum(multi_index,dims=2) .>= max.(d,mu.+1)).*(sum(multi_index,dims=2) .<= d.+mu)
 	# To allow for an ansiotropic grid I need to sort out the above line
-  multi_index_full = zeros(Int64,sum(ii),size(multi_ind,2))
+  multi_index_full = zeros(Int64,sum(ii),size(multi_index,2))
   j = 1
   for i = 1:size(multi_index,1)
     if ii[i] == true

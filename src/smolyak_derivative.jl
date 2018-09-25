@@ -41,13 +41,11 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
     # Iterate over nodes, doing the above three steps at each iteration
 
     for j = 2:size(multi_index,1)
-
       new_polynomials[k] = (k!==1)*unique_base_polynomials[multi_index[j,1]][1,:]+(k==1)*unique_base_polynomial_derivatives[multi_index[j,1]][1,:]
       for i = 2:size(multi_index,2)
         new_polynomials[k] = kron(new_polynomials[k],(k!==i)*unique_base_polynomials[multi_index[j,i]][i,:]+(k==i)*unique_base_polynomial_derivatives[multi_index[j,i]][i,:])
       end
       polynomials[k] = [polynomials[k]; new_polynomials[k]]
-
     end
 
     for i = 1:length(polynomials[k])
@@ -122,19 +120,16 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
     # Iterate over nodes, doing the above three steps at each iteration
 
     for j = 2:size(multi_index,1)
-
       new_polynomials[l] = (k!==1)*unique_base_polynomials[multi_index[j,1]][1,:]+(k==1)*unique_base_polynomial_derivatives[multi_index[j,1]][1,:]
       for i = 2:size(multi_index,2)
         new_polynomials[l] = kron(new_polynomials[l],(k!==i)*unique_base_polynomials[multi_index[j,i]][i,:]+(k==i)*unique_base_polynomial_derivatives[multi_index[j,i]][i,:])
       end
       polynomials[l] = [polynomials[l]; new_polynomials[l]]
-
     end
 
     for i = 1:length(polynomials[l])
       evaluated_derivative[l] += polynomials[l][i]*weights[i]
     end
-
   end
 
   return evaluated_derivative

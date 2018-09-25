@@ -5,10 +5,6 @@ function smolyak_weights(y::AbstractArray{T,1},nodes::Array{T,2},multi_index::Ar
   unique_multi_index = sort(unique(multi_index))
   unique_orders      = m_i(unique_multi_index).-1
 
-#  m_node_number = m_i(multi_index)
-#  multi_orders  = m_node_number-1
-#  unique_orders = sort(unique(multi_orders))
-
   # Below we do the following things:
 
   #   Generate the polynomial terms for each order
@@ -45,13 +41,11 @@ function smolyak_weights(y::AbstractArray{T,1},nodes::Array{T,2},multi_index::Ar
     # Iterate over nodes, doing the above three steps at each iteration
 
     for j = 2:size(multi_index,1)
-
       new_polynomials = unique_base_polynomials[multi_index[j,1]][1,:]
       for i = 2:size(multi_index,2)
         new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][i,:])
       end
       polynomials = [polynomials; new_polynomials]
-
     end
 
     interpolation_matrix[k,:] = polynomials[:]
@@ -81,70 +75,6 @@ function smolyak_weights(y::AbstractArray{T,1},nodes::Array{T,2},multi_index::Ar
 
   weights = smolyak_weights(y,nodes,multi_index)
 
-#=
-
-  interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
-
-  unique_multi_index = sort(unique(multi_index))
-  unique_orders      = m_i(unique_multi_index)-1
-
-#  m_node_number = m_i(multi_index)
-#  multi_orders  = m_node_number-1
-#  unique_orders = sort(unique(multi_orders))
-
-  # Below we do the following things:
-
-  #   Generate the polynomial terms for each order
-  #   Generate the unique polynomial terms introduced at each higher order
-  #   Combine the polynomial terms to construct the first row of the interpolation matrix
-  #   Iterate over the nodes, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
-
-  for k = 1:size(nodes,1)
-
-    # Construct the base polynomials
-
-    base_polynomials = Array{Array{T,2}}(length(unique_orders))
-    for i = 1:length(unique_orders)
-      base_polynomials[i] = chebyshev_polynomial(unique_orders[i],nodes[k,:])
-    end
-
-    # Compute the unique polynomial terms from the base polynomials
-
-    unique_base_polynomials = Array{Array{T,2}}(length(unique_orders))
-    for i = length(unique_orders):-1:2
-      unique_base_polynomials[i] = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
-    end
-    unique_base_polynomials[1] = base_polynomials[1]
-
-    # Construct the first row of the interplation matrix
-
-    new_polynomials = unique_base_polynomials[multi_index[1,1]][1,:]
-    for i = 2:size(multi_index,2)
-      new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[1,i]][i,:])
-    end
-
-    polynomials = copy(new_polynomials)
-
-    # Iterate over nodes, doing the above three steps at each iteration
-
-    for j = 2:size(multi_index,1)
-
-      new_polynomials = unique_base_polynomials[multi_index[j,1]][1,:]
-      for i = 2:size(multi_index,2)
-        new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][i,:])
-      end
-      polynomials = [polynomials; new_polynomials]
-
-    end
-
-    interpolation_matrix[k,:] = polynomials[:]
-
-  end
-
-  weights = interpolation_matrix\y # An alternative is to compute the inverse of interpolation_matix, which needs to be done just once, and feed that inverse into the weights function
-
-=#
-
   return weights
 
 end
@@ -155,10 +85,6 @@ function smolyak_inverse_interpolation_matrix(nodes::Array{T,2},multi_index::Arr
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders      = m_i(unique_multi_index).-1
-
-#  m_node_number = m_i(multi_index)
-#  multi_orders  = m_node_number-1
-#  unique_orders = sort(unique(multi_orders))
 
   # Below we do the following things:
 
@@ -196,13 +122,11 @@ function smolyak_inverse_interpolation_matrix(nodes::Array{T,2},multi_index::Arr
     # Iterate over nodes, doing the above three steps at each iteration
 
     for j = 2:size(multi_index,1)
-
       new_polynomials = unique_base_polynomials[multi_index[j,1]][1,:]
       for i = 2:size(multi_index,2)
         new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][i,:])
       end
       polynomials = [polynomials; new_polynomials]
-
     end
 
     interpolation_matrix[k,:] = polynomials[:]
@@ -231,70 +155,6 @@ function smolyak_inverse_interpolation_matrix(nodes::Array{T,2},multi_index::Arr
   end
 
   inverse_interpolation_matrix = smolyak_inverse_interpolation_matrix(nodes,multi_index)
-
-#=
-
-  interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
-
-  unique_multi_index = sort(unique(multi_index))
-  unique_orders      = m_i(unique_multi_index)-1
-
-#  m_node_number = m_i(multi_index)
-#  multi_orders  = m_node_number-1
-#  unique_orders = sort(unique(multi_orders))
-
-  # Below we do the following things:
-
-  #   Generate the polynomial terms for each order
-  #   Generate the unique polynomial terms introduced at each higher order
-  #   Combine the polynomial terms to construct the first row of the interpolation matrix
-  #   Iterate over the nodes, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
-
-  for k = 1:size(nodes,1)
-
-    # Construct the base polynomials
-
-    base_polynomials = Array{Array{T,2}}(length(unique_orders))
-    for i = 1:length(unique_orders)
-      base_polynomials[i] = chebyshev_polynomial(unique_orders[i],nodes[k,:])
-    end
-
-    # Compute the unique polynomial terms from the base polynomials
-
-    unique_base_polynomials = Array{Array{T,2}}(length(unique_orders))
-    for i = length(unique_orders):-1:2
-      unique_base_polynomials[i] = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
-    end
-    unique_base_polynomials[1] = base_polynomials[1]
-
-    # Construct the first row of the interplation matrix
-
-    new_polynomials = unique_base_polynomials[multi_index[1,1]][1,:]
-    for i = 2:size(multi_index,2)
-      new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[1,i]][i,:])
-    end
-
-    polynomials = copy(new_polynomials)
-
-    # Iterate over nodes, doing the above three steps at each iteration
-
-    for j = 2:size(multi_index,1)
-
-      new_polynomials = unique_base_polynomials[multi_index[j,1]][1,:]
-      for i = 2:size(multi_index,2)
-        new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][i,:])
-      end
-      polynomials = [polynomials; new_polynomials]
-
-    end
-
-    interpolation_matrix[k,:] = polynomials[:]
-
-  end
-
-  inverse_interpolation_matrix = inv(interpolation_matrix)
-
-=#
 
   return inverse_interpolation_matrix
 

@@ -5,12 +5,9 @@ function chebyshev_gauss_lobatto(n::S,domain = [1.0,-1.0]) where {S<:Integer}
   # Construct the nodes on the [-1.0,1.0] interval
 
   if n == 1
-
     nodes   = [0.0]
     weights = [pi]
-
   else
-
     nodes    = zeros(n)
     nodes[1] = 1.0
     nodes[n] = -1.0
@@ -27,13 +24,11 @@ function chebyshev_gauss_lobatto(n::S,domain = [1.0,-1.0]) where {S<:Integer}
     if isodd(n)
       nodes[round(Int,(n+1)/2)] = 0.0
     end
-
   end
 
   # Scale the nodes to the desired domain
 
   nodes = scale_nodes(nodes,domain)
-#  nodes = domain[2] .+ (1.0 .+ nodes)*((domain[1]-domain[2])/2)
 
   return nodes, weights
 

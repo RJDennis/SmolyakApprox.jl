@@ -1,40 +1,3 @@
-#=
-
-function generate_multi_index_full(d::S,mu::S) where {S<:Integer}
-
-  multi_index_full = ones(S,1,d)
-  for i = 2:(mu+1)^d
-
-    candidate_index = collect(Tuple(CartesianIndices((repeat([mu+1],inner = d)...,))[i]))
-    if sum(candidate_index) <= d+mu
-      multi_index_full = [multi_index_full; candidate_index']
-    end
-
-  end
-
-  return multi_index_full
-
-end
-
-function generate_multi_index_full(d::S,mu::Array{S,1}) where {S<:Integer}
-
-  max_mu = maximum(mu)
-  multi_index_full = ones(S,1,d)
-  for i = 2:(max_mu+1)^d
-
-    candidate_index = collect(Tuple(CartesianIndices((repeat([max_mu+1],inner = d)...,))[i]))
-    if sum(candidate_index) <= d+max_mu && sum(candidate_index .<= mu.+1) == d
-      multi_index_full = [multi_index_full; candidate_index']
-    end
-
-  end
-
-  return multi_index_full
-
-end
-
-=#
-
 function smolyak_grid_full(node_type::Function,d::S,mu::S) where {S<:Integer}
 
   T = typeof(1.0)
@@ -87,6 +50,7 @@ end
 function smolyak_grid_full(node_type::Function,d::S,mu::S,domain::Array{T,2}) where {S<:Integer, T<:AbstractFloat}
 
   (nodes, multi_index_full) = smolyak_grid_full(node_type,d,mu)
+
   nodes = scale_nodes(nodes,domain)
 
   return nodes, multi_index_full
@@ -158,8 +122,8 @@ function compute_scale_factor(poly_multi_index::Array{S,2}) where {S<:Integer}
   scale_factor = 1.0
 
   for i = 1:length(poly_multi_index)
-	  if poly_multi_index[i] > 1
-	    scale_factor *= 2.0/(m_i(poly_multi_index[i])-1)
+    if poly_multi_index[i] > 1
+      scale_factor *= 2.0/(m_i(poly_multi_index[i])-1)
     end
   end
 
@@ -186,8 +150,7 @@ function smolyak_weights_full(y_f::Array{T,1},full_grid::Array{T,2},multi_index_
     end
     cls_prod = copy(cjs_prod)
     for l = 1:g_ind[i,2] # This loops over the weights
-	    ll = CartesianIndices(Tuple(m_i(multi_index_full[i:i,:])))[l]
-      #ll = collect(ind2sub((my_m_i(multi_index_full[i:i,:])...,),l)) # The was used for Julia v0.6.x
+      ll = CartesianIndices(Tuple(m_i(multi_index_full[i:i,:])))[l]
       for j = 1:g_ind[i,2] # This loops over the nodes
         rhs_term = P(ll[1]-1,poly_grid[j,1])*poly_y[j]
         for k = 2:size(poly_grid,2) # This loops over the polynomial terms in the product
@@ -196,7 +159,7 @@ function smolyak_weights_full(y_f::Array{T,1},full_grid::Array{T,2},multi_index_
         ws[l] += rhs_term/cjs_prod[j]
       end
       scale_factor = compute_scale_factor(multi_index_full[i:i,:])
-	    ws[l] = scale_factor*(1/cjs_prod[l])*ws[l]
+      ws[l] = scale_factor*(1/cjs_prod[l])*ws[l]
     end
     weights[i] = ws
   end
@@ -237,10 +200,10 @@ function smolyak_evaluate_full(weights::Array{Array{T,1},1},node::Array{T,1},mul
       temp = weights[i][l]*P(ll[1]-1,node[1])
       for k = 2:d
   	    temp *= P(ll[k]-1,node[k])
-	    end
-	    evaluated_polynomials[i] += temp
+      end
+      evaluated_polynomials[i] += temp
     end
-	  evaluated_polynomials[i] *= (-1)^(d+mu-mi[i])*factorial(d-1)/(factorial(d+mu-mi[i])*factorial(-1-mu+mi[i]))
+    evaluated_polynomials[i] *= (-1)^(d+mu-mi[i])*factorial(d-1)/(factorial(d+mu-mi[i])*factorial(-1-mu+mi[i]))
   end
 
   return sum(evaluated_polynomials)
@@ -260,5 +223,75 @@ function smolyak_evaluate_full(weights::Array{Array{T,1},1},node::Array{T,1},mul
   estimate = smolyak_evaluate_full(weights,node,multi_index_full)
 
   return estimate
+
+end
+
+function P_derivative(order::S,x::T) where {S<:Integer, T<:AbstractFloat}
+
+  p  = 1.0
+  p1 = 0.0
+  p2 = 0.0
+  p_deriv = 0.0
+
+  for i = 2:order+1
+    if i == 2
+	  p1, p = p, x
+	  p_deriv = 1.0
+    else
+      p2, p1 = p1, p
+  	  p  = 2*x*p1-p2
+	  p_deriv = ((i-1)*p[i-1]-(i-1)*x*p[i])/(1-x^2)
+    end
+  end
+
+  return p_deriv
+
+end
+
+function smolyak_derivative_full(weights::Array{Array{T,1},1},node::Array{T,1},multi_index_full::Array{S,2},pos::Array{S,1}) where {S<:Integer, T<:AbstractFloat}
+
+  mi = sum(multi_index_full,dims=2)
+  d  = size(multi_index_full,2)
+  mu = maximum(mi)-d
+
+  evaluated_derivatives = zeros(1,length(pos))
+
+  for m in pos
+
+    evaluated_polynomials = zeros(size(multi_index_full,1))
+
+    for i = 1:size(multi_index_full,1) # This loops over the number of polynomials
+  	  for l = 1:length(weights[i])
+        ll = CartesianIndices(Tuple(m_i(multi_index_full[i:i,:])))[l]
+        temp = weights[i][l]*((m!==1)*P(ll[1]-1,node[1])+(m==1)*P_derivative(ll[1]-1,node[1]))
+        for k = 2:d
+  	      temp *= (m!==k)*P(ll[k]-1,node[k])+(m==k)*P_derivative(ll[k]-1,node[k])
+	    end
+	    evaluated_polynomials[i] += temp
+      end
+	  evaluated_polynomials[i] *= (-1)^(d+mu-mi[i])*factorial(d-1)/(factorial(d+mu-mi[i])*factorial(-1-mu+mi[i]))
+    end
+
+    evaluated_derivatives[m] = sum(evaluated_polynomials)
+
+  end
+
+  return evaluated_derivatives
+
+end
+
+function smolyak_derivative_full(weights::Array{Array{T,1},1},node::Array{T,1},multi_index_full::Array{S,2},domain::Array{T,2},pos::Array{S,1}) where {S<:Integer, T<:AbstractFloat}
+
+  for j = 1:size(domain,2)
+    if domain[1,j] == domain[2,j]
+      node[j] = (domain[1,j]+domain[2,j])/2
+    else
+      node[j] = 2*(node[j]-domain[2,j])/(domain[1,j]-domain[2,j])-one(T)
+    end
+  end
+
+  evaluated_derivatives = smolyak_derivative(weights,node,multi_index,pos)
+
+  return evaluated_derivatives
 
 end

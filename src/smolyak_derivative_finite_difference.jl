@@ -12,7 +12,6 @@ function smolyak_derivative_finite_difference(weights::Array{T,1},node::Array{T,
     f3 = smolyak_evaluate(weights,node-dh[:,i],multi_index)
     f4 = smolyak_evaluate(weights,node-2*dh[:,i],multi_index)
     evaluated_derivative[i] = (-f1+8*f2-8*f3+f4)/(12*e)
-#    evaluated_derivative[i] = (f2-f3)/(2*e)
   end
 
   return evaluated_derivative
@@ -33,7 +32,6 @@ function smolyak_derivative_finite_difference(weights::Array{T,1},node::Array{T,
     f3 = smolyak_evaluate(weights,node-dh[:,i],multi_index,domain)
     f4 = smolyak_evaluate(weights,node-2*dh[:,i],multi_index,domain)
     evaluated_derivative[i] = (2.0/(domain[1,i]-domain[2,i]))*(-f1+8*f2-8*f3+f4)/(12*e)
-#    evaluated_derivative[i] = (2.0/(domain[1,i]-domain[2,i]))*(f2-f3)/(2*e)
   end
 
   return evaluated_derivative

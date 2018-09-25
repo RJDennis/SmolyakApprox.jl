@@ -44,7 +44,15 @@ function test_smolyak_derivative()
   derivatives_3 = smolyak_derivative(weights,point,multi_ind,[1])
   derivatives_4 = smolyak_derivative(weights,point,multi_ind,[1,2,3,4,5])
 
-  return derivatives_1, derivatives_2, derivatives_3, derivatives_4
+  grid_full, multi_ind_full = smolyak_grid_full(chebyshev_gauss_lobatto,d,mu)  # Construct the Smolyak grid and the multi index
+  y_full = test(grid_full)                                                     # Evaluate the test function on the Smolyak grid
+  weights_full = smolyak_weights_full(y_full,grid_full,multi_ind_full)         # Compute the Smolyak weights
+
+  derivatives_3_full = smolyak_derivative_full(weights_full,point,multi_ind_full,[1])         # Evaluate the approximated function
+  derivatives_4_full = smolyak_derivative_full(weights_full,point,multi_ind_full,[1,2,3,4,5]) # Evaluate the approximated function
+
+
+  return derivatives_1, derivatives_2, derivatives_3, derivatives_4, derivatives_3_full, derivatives_4_full
 
 end
 

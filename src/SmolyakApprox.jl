@@ -28,6 +28,7 @@ export chebyshev_gauss_lobatto,
        smolyak_derivative,
        smolyak_grid_full,
        smolyak_weights_full,
-       smolyak_evaluate_full
+       smolyak_evaluate_full,
+       smolyak_derivative_full
 
 end

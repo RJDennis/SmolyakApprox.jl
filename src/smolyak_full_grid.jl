@@ -290,7 +290,7 @@ function smolyak_derivative_full(weights::Array{Array{T,1},1},node::Array{T,1},m
     end
   end
 
-  evaluated_derivatives = smolyak_derivative(weights,node,multi_index,pos)
+  evaluated_derivatives = smolyak_derivative_full(weights,node,multi_index,pos)
 
   return evaluated_derivatives
 

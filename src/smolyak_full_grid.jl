@@ -1,3 +1,5 @@
+#=
+
 function generate_multi_index_full(d::S,mu::S) where {S<:Integer}
 
   multi_index_full = ones(S,1,d)
@@ -31,11 +33,13 @@ function generate_multi_index_full(d::S,mu::Array{S,1}) where {S<:Integer}
 
 end
 
+=#
+
 function smolyak_grid_full(node_type::Function,d::S,mu::S) where {S<:Integer}
 
   T = typeof(1.0)
 
-  multi_index        = generate_multi_index_full(d,mu)
+  multi_index        = generate_multi_index(d,mu)
   unique_multi_index = sort(unique(multi_index))
   unique_node_number = m_i(unique_multi_index)
 
@@ -49,8 +53,7 @@ function smolyak_grid_full(node_type::Function,d::S,mu::S) where {S<:Integer}
 
   # Select the relevant polynomials from the multi index
 
-  ii = (sum(multi_index,dims=2) .>= max.(d,mu.+1)).*(sum(multi_index,dims=2) .<= d.+mu)
-	# To allow for an ansiotropic grid I need to sort out the above line
+  ii = (sum(multi_index,dims=2) .>= max(d,mu+1)).*(sum(multi_index,dims=2) .<= d+mu)
   multi_index_full = zeros(Int64,sum(ii),size(multi_index,2))
   j = 1
   for i = 1:size(multi_index,1)

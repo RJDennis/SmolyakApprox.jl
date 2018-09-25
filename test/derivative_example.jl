@@ -51,7 +51,6 @@ function test_smolyak_derivative()
   derivatives_3_full = smolyak_derivative_full(weights_full,point,multi_ind_full,[1])         # Evaluate the approximated function
   derivatives_4_full = smolyak_derivative_full(weights_full,point,multi_ind_full,[1,2,3,4,5]) # Evaluate the approximated function
 
-
   return derivatives_1, derivatives_2, derivatives_3, derivatives_4, derivatives_3_full, derivatives_4_full
 
 end

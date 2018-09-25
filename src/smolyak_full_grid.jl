@@ -240,7 +240,7 @@ function P_derivative(order::S,x::T) where {S<:Integer, T<:AbstractFloat}
     else
       p2, p1 = p1, p
   	  p  = 2*x*p1-p2
-	  p_deriv = ((i-1)*p[i-1]-(i-1)*x*p[i])/(1-x^2)
+	  p_deriv = ((i-1)*p1-(i-1)*x*p)/(1-x^2)
     end
   end
 

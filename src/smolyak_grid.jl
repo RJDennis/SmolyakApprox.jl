@@ -1,6 +1,6 @@
 # The first two functions relate to an ansiotropic grid
 
-function smolyak_grid(node_type::Function,d::S,mu::Array{S,1}) where {S<:Integer}
+function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}}) where {S<:Integer}
 
   T = typeof(1.0)
 
@@ -54,7 +54,7 @@ function smolyak_grid(node_type::Function,d::S,mu::Array{S,1}) where {S<:Integer
 
 end
 
-function smolyak_grid(node_type::Function,d::S,mu::Array{S,1},domain::Array{T,2}) where {S<:Integer, T<:AbstractFloat}
+function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}},domain::Array{T,2}) where {S<:Integer, T<:AbstractFloat}
 
   (nodes, multi_index) = smolyak_grid(node_type,d,mu)
 
@@ -70,6 +70,8 @@ function smolyak_grid(node_type::Function,d::S,mu::Array{S,1},domain::Array{T,2}
 end
 
 # The functions below relate to the isotropic grid
+
+#=
 
 function smolyak_grid(node_type::Function,d::S,mu::S) where {S<:Integer}
 
@@ -139,3 +141,5 @@ function smolyak_grid(node_type::Function,d::S,mu::S,domain::Array{T,2}) where {
   # so that it can be used for numerical integration.
 
 end
+
+=#

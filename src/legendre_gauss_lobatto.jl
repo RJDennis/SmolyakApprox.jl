@@ -20,7 +20,7 @@ function legendre_gauss_lobatto(n::S,domain = [1.0,-1.0]) where S <: Integer
       nodes[round(Int,(n+1)/2)] = 0.0
     end
 
-    p[:,1] = 1.0
+    p[:,1] .= 1.0
 
     len = Inf
     while len > eps(1.0)

@@ -170,6 +170,7 @@ end
 
 function smolyak_weights_full(y_f::Array{T,1},full_grid::Array{T,2},multi_index_full::Array{S,2},domain::Array{T,2}) where {S<:Integer, T<:AbstractFloat}
 
+  full_grid = copy(full_grid)
   for i = 1:size(full_grid,1)
     for j = 1:size(domain,2)
       if domain[1,j] == domain[2,j]
@@ -212,6 +213,7 @@ end
 
 function smolyak_evaluate_full(weights::Array{Array{T,1},1},node::Array{T,1},multi_index_full::Array{S,2},domain::Array{T,2}) where {S<:Integer, T<:AbstractFloat}
 
+  node = copy(node)
   for j = 1:size(domain,2)
     if domain[1,j] == domain[2,j]
       node[j] = (domain[1,j]+domain[2,j])/2
@@ -282,6 +284,7 @@ end
 
 function smolyak_derivative_full(weights::Array{Array{T,1},1},node::Array{T,1},multi_index_full::Array{S,2},domain::Array{T,2},pos::Array{S,1}) where {S<:Integer, T<:AbstractFloat}
 
+  node = copy(node)
   for j = 1:size(domain,2)
     if domain[1,j] == domain[2,j]
       node[j] = (domain[1,j]+domain[2,j])/2

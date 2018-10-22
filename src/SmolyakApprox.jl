@@ -3,6 +3,7 @@ using LinearAlgebra
 
 include("chebyshev_gauss_lobatto.jl")
 include("legendre_gauss_lobatto.jl")
+include("clenshaw_curtis_equidistant.jl")
 include("chebyshev_polynomial.jl")
 include("smolyak_weights.jl")
 include("smolyak_evaluate.jl")
@@ -18,6 +19,7 @@ include("smolyak_full_grid.jl")
 
 export chebyshev_gauss_lobatto,
        legendre_gauss_lobatto,
+       clenshaw_curtis_equidistant,
        smolyak_grid,
        m_i,
        smolyak_weights,

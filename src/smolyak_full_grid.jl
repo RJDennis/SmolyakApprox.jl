@@ -133,6 +133,10 @@ end
 
 function smolyak_weights_full(y_f::Array{T,1},full_grid::Array{T,2},multi_index_full::Array{S,2}) where {S<:Integer, T<:AbstractFloat}
 
+  mi = sum(multi_index_full,dims=2)
+  d  = size(multi_index_full,2)
+  mu = maximum(mi)-d
+
   max_grid = maximum(full_grid,dims=1)
   min_grid = minimum(full_grid,dims=1)
 
@@ -161,7 +165,7 @@ function smolyak_weights_full(y_f::Array{T,1},full_grid::Array{T,2},multi_index_
       scale_factor = compute_scale_factor(multi_index_full[i:i,:])
       ws[l] = scale_factor*(1/cjs_prod[l])*ws[l]
     end
-    weights[i] = ws
+    weights[i] = (-1)^(d+mu-mi[i])*factorial(d-1)/(factorial(d+mu-mi[i])*factorial(-1-mu+mi[i]))*ws
   end
 
   return weights
@@ -188,9 +192,9 @@ end
 
 function smolyak_evaluate_full(weights::Array{Array{T,1},1},node::Array{T,1},multi_index_full::Array{S,2}) where {S<:Integer, T<:AbstractFloat}
 
-  mi = sum(multi_index_full,dims=2)
+  #mi = sum(multi_index_full,dims=2)
   d  = size(multi_index_full,2)
-  mu = maximum(mi)-d
+  #mu = maximum(mi)-d
 
   evaluated_polynomials = zeros(size(multi_index_full,1))
 
@@ -203,7 +207,7 @@ function smolyak_evaluate_full(weights::Array{Array{T,1},1},node::Array{T,1},mul
       end
       evaluated_polynomials[i] += temp
     end
-    evaluated_polynomials[i] *= (-1)^(d+mu-mi[i])*factorial(d-1)/(factorial(d+mu-mi[i])*factorial(-1-mu+mi[i]))
+    #evaluated_polynomials[i] *= (-1)^(d+mu-mi[i])*factorial(d-1)/(factorial(d+mu-mi[i])*factorial(-1-mu+mi[i]))
   end
 
   return sum(evaluated_polynomials)
@@ -269,7 +273,7 @@ function smolyak_derivative_full(weights::Array{Array{T,1},1},node::Array{T,1},m
 	    end
 	    evaluated_polynomials[i] += temp
       end
-	  evaluated_polynomials[i] *= (-1)^(d+mu-mi[i])*factorial(d-1)/(factorial(d+mu-mi[i])*factorial(-1-mu+mi[i]))
+	  #evaluated_polynomials[i] *= (-1)^(d+mu-mi[i])*factorial(d-1)/(factorial(d+mu-mi[i])*factorial(-1-mu+mi[i]))
     end
 
     evaluated_derivatives[m] = sum(evaluated_polynomials)

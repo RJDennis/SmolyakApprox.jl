@@ -37,6 +37,11 @@ function test_smolyak_approx()
   w = smolyak_weights(y,interp_mat)             # Compute the Smolyak weights
   y_hatt = smolyak_evaluate(w,point,multi_ind)  # Evaluate the approximated function
 
+  # Piecewise linear
+
+  w_pl = smolyak_pl_weights(y,g2,m2)
+  y_pl_hat = smolyak_pl_evaluate(w_pl,point,g2,m2)
+
   # Evaluate the exact function at point
 
   y_actual = test(point')
@@ -49,6 +54,9 @@ function test_smolyak_approx()
   weights = smolyak_weights(y,grid,multi_ind)                   # Compute the Smolyak weights
   y_hat_ansio = smolyak_evaluate(weights,point,multi_ind)       # Evaluate the approximated function
 
+  w_pl_ansio = smolyak_pl_weights(y,g2,m2)
+  y_pl_hat_ansio = smolyak_pl_evaluate(w_pl,point,g2,m2)
+
   # Now test the full grid results
 
   mu = 3
@@ -57,7 +65,7 @@ function test_smolyak_approx()
   weights_full = smolyak_weights_full(y_full,grid_full,multi_ind_full)        # Compute the Smolyak weights
   y_hat_full = smolyak_evaluate_full(weights_full,point,multi_ind_full)       # Evaluate the approximated function
 
-  return y_hat, y_hatt, y_actual, y_hat_ansio, y_hat_full
+  return y_hat, y_hatt, y_actual, y_pl_hat, y_hat_ansio, y_pl_hat_ansio, y_hat_full
 
 end
 

@@ -3,7 +3,7 @@ function smolyak_barycentric_points(nodes::Array{T,2},x::Array{T,1},num_points::
   n = size(nodes,1)
 
   if num_points > n
-    println("smolyak_knn_points: Too many points")
+    println("smolyak_barycentric_points: Too many points")
     throw(ErrorException())
   end
 

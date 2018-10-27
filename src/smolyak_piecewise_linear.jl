@@ -103,7 +103,7 @@ function smolyak_pl_evaluate(weights::Array{T,1},point::Array{T,1},nodes::Array{
 
 end
 
-function smolyak_pl_evaluate(weights::Array{T,1},point::Array{T,1},nodes::Array{T,2},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_pl_evaluate(weights::Array{T,1},point::Array{T,1},nodes::Array{T,2},multi_index::Array{S,2},domain::Array{T,2}) where {T<:AbstractFloat,S<:Integer}
 
   nodes = copy(nodes)
   for i = 1:size(nodes,1)

@@ -16,7 +16,7 @@ include("smolyak_derivative_finite_difference.jl")
 include("smolyak_derivative.jl")
 include("scale_nodes.jl")
 include("smolyak_full_grid.jl")
-#include("smolyak_piecewise_linear.jl")
+include("smolyak_piecewise_linear.jl")
 
 export chebyshev_gauss_lobatto,
        legendre_gauss_lobatto,

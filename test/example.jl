@@ -40,7 +40,7 @@ function test_smolyak_approx()
 
   # Piecewise linear
 
-  w_pl = smolyak_pl_weights(y,g2,m2)
+  w_pl = smolyak_pl_weights(y_pl,g2,m2)
   y_pl_hat = smolyak_pl_evaluate(w_pl,point,g2,m2)
 
   # Evaluate the exact function at point
@@ -57,7 +57,7 @@ function test_smolyak_approx()
 
   g3, m3 =  smolyak_grid(clenshaw_curtis_equidistant,d,mu)
   y_pl = test(g3)
-  w_pl_ansio = smolyak_pl_weights(y,g3,m3)
+  w_pl_ansio = smolyak_pl_weights(y_pl,g3,m3)
   y_pl_hat_ansio = smolyak_pl_evaluate(w_pl,point,g3,m3)
 
   # Now test the full grid results

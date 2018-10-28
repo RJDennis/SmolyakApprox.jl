@@ -22,6 +22,7 @@ function test_smolyak_approx()
   end
 
   y = test(grid)  # Evaluate the test function on the Smolyak grid
+  y_pl = test(g2)
 
   point = [0.75, 0.45, 0.82, -0.15, -0.95]  # Choose a point to evaluate the approximated function
 
@@ -55,6 +56,7 @@ function test_smolyak_approx()
   y_hat_ansio = smolyak_evaluate(weights,point,multi_ind)       # Evaluate the approximated function
 
   g3, m3 =  smolyak_grid(clenshaw_curtis_equidistant,d,mu)
+  y_pl = test(g3)
   w_pl_ansio = smolyak_pl_weights(y,g3,m3)
   y_pl_hat_ansio = smolyak_pl_evaluate(w_pl,point,g3,m3)
 

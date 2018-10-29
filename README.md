@@ -15,7 +15,7 @@ Then the package can be used by typing
 using SmolyakApprox
 ```
 
-Chebyshev Polynomials
+Chebyshev polynomials
 ---------------------
 
 The nodes are computed using either Chebyshev-Gauss-Lobatto or Legendre-Gauss-Lobatto, with the approximation grid and the multi-index computed by
@@ -55,7 +55,7 @@ where `point` (a 1d-array) is the point in the domain where the approximation is
 Piecewise linear
 ----------------
 
-For piecewise linear approximation equidistant nodes are used where the number of nodes is determined according to the Clenshaw-Curtis grid structure: 2^{(mu-1)+1}
+For piecewise linear approximation equidistant nodes are used where the number of nodes is determined according to the Clenshaw-Curtis grid structure: 2^(mu-1)+1
 
 ```
 grid, multi_ind = smolyak_grid(clenshaw_curtis_equidistant,d,mu,domain)
@@ -73,7 +73,7 @@ and the approximation computed via
 y_hat = smolyak_pl_evaluate(weights,point,grid,multi_ind,domain)
 ```
 
-Again 'mu' can be either an integer or a 1d array of integers depending on whether an isotropic or an anisotropic approximation is desired, and the argument 'domain' is unnecessary where the grid resides on [-1,1]^{d}.
+Again 'mu' can be either an integer or a 1d array of integers depending on whether an isotropic or an anisotropic approximation is desired, and the argument 'domain' is unnecessary where the grid resides on [-1,1]^d.
 
 My primary references when writing this package were:
 

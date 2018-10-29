@@ -1,10 +1,14 @@
 # SmolyakApprox.jl
 
-This package implements Smolyak's method for approximating multivariate continuous functions.
+SmolyakApprox
+=============
+
+This package implements Smolyak's method for approximating multivariate continuous functions.  Two different types of interpolation schemes are allowed: Chebyshev polynomials or piecewise linear.
 
 To install this package (it is currently not official, and so not included in METADATA) you need to type in the REPL
 
 ```julia
+using Pkg
 Pkg.clone("https://github.com/RJDennis/SmolyakApprox.jl")
 ```
 
@@ -13,6 +17,9 @@ Then the package can be used by typing
 ```
 using SmolyakApprox
 ```
+
+Chebyshev Polynomials
+---------------------
 
 The nodes are computed using either Chebyshev-Gauss-Lobatto or Legendre-Gauss-Lobatto, with the approximation grid and the multi-index computed by
 
@@ -48,7 +55,29 @@ y_hat = smolyak_evaluate(weights,point,multi_ind,domain)
 
 where `point` (a 1d-array) is the point in the domain where the approximation is to be evaluated.
 
-My primary reference when writing this package was:
+Piecewise linear
+----------------
 
-Judd, K., Maliar, L., Maliar, S., and R. Valero, (2014), "Smolyak Method for Solving Dynamic Economic Models:
-Lagrange Interpolation, Anisotropic Grid and Adaptive Domain," Journal of Economic Dynamics and Control, 44, pp.92--123.
+For piecewise linear approximation equidistant nodes are used where the number of nodes is determined according to the Clenshaw-Curtis grid structure: 2^(mu-1)+1
+
+```
+grid, multi_ind = smolyak_grid(clenshaw_curtis_equidistant,d,mu,domain)
+```
+
+Then the weights are computed using
+
+```
+weights = smolyak_pl_weights(y,grid,multi_ind,domain)
+```
+
+and the approximation computed via
+
+```
+y_hat = smolyak_pl_evaluate(weights,point,grid,multi_ind,domain)
+```
+
+My primary references when writing this package were:
+
+Judd, K., Maliar, L., Maliar, S., and R. Valero, (2014), "Smolyak Method for Solving Dynamic Economic Models: Lagrange Interpolation, Anisotropic Grid and Adaptive Domain," Journal of Economic Dynamics and Control, 44, pp.92--123.
+
+Klimke, A., and B. Wohlmuth, (2005), "Algorithm 846: spinterp: Piecewise Multilinear Hierarchical Grid Interpolation in MATLAB," ACM Transactions on Mathematical Software, 31, 4, pp.561--579.

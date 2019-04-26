@@ -54,7 +54,11 @@ function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}}) where {S
 
 end
 
-function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}},domain::Array{T,2}) where {S<:Integer, T<:AbstractFloat}
+function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}},domain::Union{Array{T,1},Array{T,2}}) where {S<:Integer, T<:AbstractFloat}
+
+  if size(domain,2) != d
+    error("domain is inconsistent with the number of dimensions")
+  end
 
   (nodes, multi_index) = smolyak_grid(node_type,d,mu)
 

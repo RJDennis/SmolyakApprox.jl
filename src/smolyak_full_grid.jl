@@ -135,7 +135,7 @@ function compute_scale_factor(poly_multi_index::Array{S,2}) where {S<:Integer}
 
 end
 
-function smolyak_weights_full(y_f::Array{T,1},full_grid::Array{T,2},multi_index_full::Array{S,2}) where {S<:Integer, T<:AbstractFloat}
+function smolyak_weights_full(y_f::Array{T,1},full_grid::Union{Array{T,1},Array{T,2}},multi_index_full::Array{S,2}) where {S<:Integer, T<:AbstractFloat}
 
   mi = sum(multi_index_full,dims=2)
   d  = size(multi_index_full,2)
@@ -176,7 +176,7 @@ function smolyak_weights_full(y_f::Array{T,1},full_grid::Array{T,2},multi_index_
 
 end
 
-function smolyak_weights_full(y_f::Array{T,1},full_grid::Array{T,2},multi_index_full::Array{S,2},domain::Array{T,2}) where {S<:Integer, T<:AbstractFloat}
+function smolyak_weights_full(y_f::Array{T,1},full_grid::Union{Array{T,1},Array{T,2}},multi_index_full::Array{S,2},domain::Array{T,2}) where {S<:Integer, T<:AbstractFloat}
 
   full_grid = copy(full_grid)
   for i = 1:size(full_grid,1)

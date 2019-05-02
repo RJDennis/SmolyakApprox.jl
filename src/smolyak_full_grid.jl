@@ -105,7 +105,7 @@ function P(order::S,x::T) where {S<:Integer, T<:AbstractFloat}
 
 end
 
-function prod_cjs(max_grid::Array{T,2},min_grid::Array{T,2},poly_grid::Array{T,2}) where {T<:AbstractFloat}
+function prod_cjs(max_grid::Union{Array{T,1},Array{T,2}},min_grid::Union{Array{T,1},Array{T,2}},poly_grid::Array{T,2}) where {T<:AbstractFloat}
 
   cjs = ones(size(poly_grid))
 

@@ -1,4 +1,4 @@
-function smolyak_pl_weights(y::AbstractArray{T,1},nodes::Array{T,2},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_pl_weights(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
 
   interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
   for l = 1:size(nodes,1)
@@ -40,7 +40,7 @@ function smolyak_pl_weights(y::AbstractArray{T,1},nodes::Array{T,2},multi_index:
 
 end
 
-function smolyak_pl_weights(y::AbstractArray{T,1},nodes::Array{T,2},multi_index::Array{S,2},domain::Array{T,2}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_pl_weights(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
 
   # Normalize nodes to the [-1.0 1.0] interval
 
@@ -103,7 +103,7 @@ function smolyak_pl_evaluate(weights::Array{T,1},point::Array{T,1},nodes::Array{
 
 end
 
-function smolyak_pl_evaluate(weights::Array{T,1},point::Array{T,1},nodes::Array{T,2},multi_index::Array{S,2},domain::Array{T,2}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_pl_evaluate(weights::Array{T,1},point::Array{T,1},nodes::Array{T,2},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
 
   nodes = copy(nodes)
   for i = 1:size(nodes,1)

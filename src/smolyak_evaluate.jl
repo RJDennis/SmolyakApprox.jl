@@ -53,7 +53,11 @@ function smolyak_evaluate(weights::Array{T,1},node::Array{T,1},multi_index::Arra
 
 end
 
-function smolyak_evaluate(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Array{T,2}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_evaluate(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+
+  if size(domain,2) != size(node,2)
+    error("domain is inconsistent with the number of dimensions")
+  end
 
   node = copy(node)
   for j = 1:size(domain,2)

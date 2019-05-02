@@ -47,7 +47,11 @@ function smolyak_grid_full(node_type::Function,d::S,mu::S) where {S<:Integer}
 
 end
 
-function smolyak_grid_full(node_type::Function,d::S,mu::S,domain::Array{T,2}) where {S<:Integer, T<:AbstractFloat}
+function smolyak_grid_full(node_type::Function,d::S,mu::S,domain::Union{Array{T,1},Array{T,2}}) where {S<:Integer, T<:AbstractFloat}
+
+  if size(domain,2) != d
+    error("domain is inconsistent with the number of dimensions")
+  end
 
   (nodes, multi_index_full) = smolyak_grid_full(node_type,d,mu)
 

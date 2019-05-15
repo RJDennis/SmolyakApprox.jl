@@ -1,9 +1,5 @@
 function m_i(multi_index::Union{S,Array{S,1},Array{S,2}}) where {S<:Integer}
 
-  if size(multi_index,2) != 1
-	error("the multi index should be a vector")
-  end
-
   m_node_number = copy(multi_index)
 
   if typeof(multi_index) == S

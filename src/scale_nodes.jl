@@ -1,6 +1,6 @@
 function scale_nodes(nodes::Array{T,1},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat}
 
-  if size(domain,2) != size(nodes,2)
+  if size(domain,2) != length(nodes)
     error("domain is inconsistent with the number of dimensions")
   end
 

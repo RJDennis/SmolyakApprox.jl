@@ -58,7 +58,11 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
 
 end
 
-function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Array{T,2}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+
+  if size(domain,2) != length(node)
+    error("domain is inconsistent with the number of dimensions")
+  end
 
   node = copy(node)
   for j = 1:size(domain,2)
@@ -136,7 +140,11 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
 
 end
 
-function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Array{T,2},pos::Array{S,1}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}},pos::Array{S,1}) where {T<:AbstractFloat,S<:Integer}
+
+  if size(domain,2) != length(node)
+    error("domain is inconsistent with the number of dimensions")
+  end
 
   node = copy(node)
   for j = 1:size(domain,2)

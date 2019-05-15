@@ -18,7 +18,11 @@ function smolyak_derivative_finite_difference(weights::Array{T,1},node::Array{T,
 
 end
 
-function smolyak_derivative_finite_difference(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Array{T,2}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_derivative_finite_difference(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+
+  if size(domain,2) != length(node)
+    error("domain is inconsistent with the number of dimensions")
+  end
 
   m = length(node)
   e  = eps(T)^(1/3)*maximum(abs,[node;one(T)])

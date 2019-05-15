@@ -1,9 +1,5 @@
 function scale_nodes(nodes::Array{T,1},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat}
 
-  if size(domain,2) != length(nodes)
-    error("domain is inconsistent with the number of dimensions")
-  end
-
   for i = 1:length(nodes)
     nodes[i] = domain[2] + (1.0+nodes[i])*(domain[1]-domain[2])/2
   end

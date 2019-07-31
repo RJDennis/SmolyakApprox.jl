@@ -130,3 +130,29 @@ function smolyak_pl_evaluate(weights::Array{T,1},point::Array{T,1},nodes::Array{
   return estimate
 
 end
+
+###########################################################################
+
+function smolyak_pl_evaluate(weights::Array{T,1},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
+
+  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+
+    return smolyak_pl_evaluate(weights,x,multi_index)
+
+  end
+
+  return goo
+
+end
+
+function smolyak_pl_evaluate(weights::Array{T,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+
+  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+
+    return smolyak_pl_evaluate(weights,x,multi_index,domain)
+
+  end
+
+  return goo
+
+end

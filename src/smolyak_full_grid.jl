@@ -306,3 +306,77 @@ function smolyak_derivative_full(weights::Array{Array{T,1},1},node::Array{T,1},m
   return evaluated_derivatives
 
 end
+
+###########################################################################
+
+function smolyak_evaluate_full(weights::Array{T,1},multi_index_full::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
+
+  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+
+    return smolyak_evaluate_full(weights,x,multi_index_full)
+
+  end
+
+  return goo
+
+end
+
+function smolyak_evaluate_full(weights::Array{T,1},multi_index_full::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+
+  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+
+    return smolyak_evaluate_full(weights,x,multi_index_full,domain)
+
+  end
+
+  return goo
+
+end
+
+function smolyak_derivative_full(weights::Array{T,1},multi_index_full::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
+
+  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+
+    return smolyak_derivative_full(weights,x,multi_index_full)
+
+  end
+
+  return goo
+
+end
+
+function smolyak_derivative_full(weights::Array{T,1},multi_index_full::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+
+  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+
+    return smolyak_derivative_full(weights,x,multi_index_full,domain)
+
+  end
+
+  return goo
+
+end
+
+function smolyak_derivative_full(weights::Array{T,1},multi_index_full::Array{S,2},pos::Array{S,1}) where {T<:AbstractFloat,S<:Integer}
+
+  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+
+    return smolyak_derivative_full(weights,x,multi_index_full,pos)
+
+  end
+
+  return goo
+
+end
+
+function smolyak_derivative_full(weights::Array{T,1},multi_index_full::Array{S,2},domain::Union{Array{T,1},Array{T,2}},pos::Array{S,1}) where {T<:AbstractFloat,S<:Integer}
+
+  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+
+    return smolyak_derivative_full(weights,x,multi_index_full,domain,pos)
+
+  end
+
+  return goo
+
+end

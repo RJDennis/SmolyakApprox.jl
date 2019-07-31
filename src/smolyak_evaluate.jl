@@ -75,6 +75,19 @@ function smolyak_evaluate(weights::Array{T,1},node::Array{T,1},multi_index::Arra
 end
 
 ###########################################################################
+
+function smolyak_evaluate(weights::Array{T,1},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
+
+  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+
+    return smolyak_evaluate(weights,x,multi_index)
+
+  end
+
+  return goo
+
+end
+
 function smolyak_evaluate(weights::Array{T,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
 
   function goo(x::Array{T,1}) where {T <: AbstractFloat}

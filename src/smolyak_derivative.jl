@@ -160,3 +160,53 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
   return evaluated_derivative
 
 end
+
+#########################################################################
+
+function smolyak_derivative(weights::Array{T,1},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
+
+  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+
+    return smolyak_derivative(weights,x,multi_index)
+
+  end
+
+  return goo
+
+end
+
+function smolyak_derivative(weights::Array{T,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+
+  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+
+    return smolyak_derivative(weights,x,multi_index,domain)
+
+  end
+
+  return goo
+
+end
+
+function smolyak_derivative(weights::Array{T,1},multi_index::Array{S,2},pos::Array{S,1}) where {T<:AbstractFloat,S<:Integer}
+
+  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+
+    return smolyak_derivative(weights,x,multi_index,pos)
+
+  end
+
+  return goo
+
+end
+
+function smolyak_derivative(weights::Array{T,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}},pos::Array{S,1}) where {T<:AbstractFloat,S<:Integer}
+
+  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+
+    return smolyak_derivative(weights,x,multi_index,domain,pos)
+
+  end
+
+  return goo
+
+end

@@ -18,13 +18,13 @@ using SmolyakApprox
 Chebyshev polynomials
 ---------------------
 
-The nodes are computed using either Chebyshev-Gauss-Lobatto or Legendre-Gauss-Lobatto, with the approximation grid and the multi-index computed by
+The nodes are computed using Chebyshev-Gauss-Lobatto, with the approximation grid and the multi-index computed by
 
 ```
 grid, multi_ind = smolyak_grid(chebyshev_gauss_lobatto,d,mu,domain)
 ```
 
-where `d` is the dimension of the function, `mu` is the layer or approximation order, and domain is a 2d-array (2xd) containing the upper and lower bound on each variable.  If domain is not provided, then it is assumed that the variables reside on the [-1,1] interval.  `legendre_gauss_lobatto` can obviously be used in place of `chebyshev_gauss_lobatto`.  If `mu` is an integer, then an isotropic grid is computed whereas if `mu` is an array of integers with length `d`, then an anisotropic grid is computed.
+where `d` is the dimension of the function, `mu` is the layer or approximation order, and domain is a 2d-array (2xd) containing the upper and lower bound on each variable.  If domain is not provided, then it is assumed that the variables reside on the [-1,1] interval.  If `mu` is an integer, then an isotropic grid is computed whereas if `mu` is an array of integers with length `d`, then an anisotropic grid is computed.
 
 With the grid and multi-index in hand, we can compute the weights, or coefficients in the approximation, according to
 

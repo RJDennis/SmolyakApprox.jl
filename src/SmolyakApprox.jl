@@ -2,7 +2,6 @@ module SmolyakApprox
 using LinearAlgebra
 
 include("chebyshev_gauss_lobatto.jl")
-include("legendre_gauss_lobatto.jl")
 include("clenshaw_curtis_equidistant.jl")
 include("chebyshev_polynomial.jl")
 include("smolyak_weights.jl")

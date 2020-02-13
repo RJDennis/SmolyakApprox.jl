@@ -6,7 +6,6 @@ function legendre_gauss_lobatto(n::S,domain = [1.0,-1.0]) where S <: Integer
 
   if n == 1
     nodes   = [0.0]
-#    weights = [2.0]
   else
     nodes    = zeros(n)
     nodes[1] = 1.0
@@ -40,7 +39,11 @@ function legendre_gauss_lobatto(n::S,domain = [1.0,-1.0]) where S <: Integer
 
   # Compute the weights
 
-  weights = 2.0./((n-1)*n*p[:,n].^2)
+  if n == 1
+    weights = [2.0]
+  else
+    weights = 2.0./((n-1)*n*p[:,n].^2)
+  end
 
   return nodes, weights
 

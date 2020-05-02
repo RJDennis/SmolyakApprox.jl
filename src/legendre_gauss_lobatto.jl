@@ -26,9 +26,9 @@ function legendre_gauss_lobatto(n::S,domain = [1.0,-1.0]) where S <: Integer
       nodes_old = copy(nodes)
       p[:,2] = nodes
       for i = 2:(n-1)
-        p[:,i+1] = ((2*i-1)*nodes.*p[:,i]-(i-1)*p[:,i-1])/i
+        @views p[:,i+1] = ((2*i-1)*nodes.*p[:,i]-(i-1)*p[:,i-1])/i
       end
-      nodes = nodes_old - (nodes.*p[:,n]-p[:,n-1])./(n*p[:,n])
+      @views nodes = nodes_old - (nodes.*p[:,n]-p[:,n-1])./(n*p[:,n])
       len = maximum(abs,nodes-nodes_old)
     end
   end

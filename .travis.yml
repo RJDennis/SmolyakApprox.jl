@@ -2,7 +2,7 @@ language: julia
 julia:
   - 1.5
   - 1.6
-  - master
+  - nightly
   
 #script:
 #    - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi

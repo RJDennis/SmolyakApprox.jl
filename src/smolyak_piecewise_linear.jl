@@ -5,7 +5,7 @@ function smolyak_pl_weights(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{
     k = 1
     x = nodes[l,:]
     for i = 1:size(multi_index,1)
-      m_node_number = SmolyakApprox.m_i(multi_index[i,:])
+      m_node_number = m_i(multi_index[i,:])
       if prod(m_node_number) == 1
         interpolation_matrix[l,k] = 1.0
         k += 1
@@ -13,7 +13,7 @@ function smolyak_pl_weights(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{
         extra_nodes = 1
         for j = 1:length(m_node_number)
           if m_node_number[j] > 1
-            extra_nodes *= m_node_number[j] - SmolyakApprox.m_i(multi_index[i,j]-1)
+            extra_nodes *= m_node_number[j] - m_i(multi_index[i,j]-1)
           end
         end
         for h = 1:extra_nodes
@@ -66,7 +66,7 @@ function smolyak_pl_evaluate(weights::Array{T,1},point::Array{T,1},nodes::Array{
   basis = zeros(size(nodes,1))
   k = 1
   for i = 1:size(multi_index,1)
-    m_node_number = SmolyakApprox.m_i(multi_index[i,:])
+    m_node_number = m_i(multi_index[i,:])
     if prod(m_node_number) == 1
       basis[k] = 1.0
       k += 1
@@ -74,7 +74,7 @@ function smolyak_pl_evaluate(weights::Array{T,1},point::Array{T,1},nodes::Array{
       extra_nodes = 1
       for j = 1:length(m_node_number)
         if m_node_number[j] > 1
-          extra_nodes *= m_node_number[j] - SmolyakApprox.m_i(multi_index[i,j]-1)
+          extra_nodes *= m_node_number[j] - m_i(multi_index[i,j]-1)
         end
       end
       for h = 1:extra_nodes

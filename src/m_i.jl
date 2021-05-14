@@ -1,21 +1,33 @@
-function m_i(multi_index::Union{S,Array{S,1},Array{S,2}}) where {S<:Integer}
+function m_i(multi_index::S) where {S <: Integer}
 
-  m_node_number = copy(multi_index)
-
-  if typeof(multi_index) == S
-    if multi_index == 1
-	  m_node_number = 1
-    else
-	  m_node_number = 2^(multi_index-1)+1
-    end
+  if multi_index == 1
+	  m_node_number = one(S)
   else
-    for i = 1:length(multi_index)
-      if multi_index[i] == 1
-        m_node_number[i] = 1
-      else
-        m_node_number[i] = 2^(multi_index[i]-1)+1
-      end
-    end
+	  m_node_number = 2^(multi_index-1)+1
+   end
+  
+  return m_node_number
+
+end
+
+function m_i(multi_index::Array{S,1}) where {S <: Integer}
+
+  m_node_number = Array{S,1}(undef,length(multi_index))
+
+  @inbounds for i in eachindex(multi_index)
+    m_node_number[i] = m_i(multi_index[i])
+  end
+
+  return m_node_number
+
+end
+
+function m_i(multi_index::Array{S,2}) where {S <: Integer}
+
+  m_node_number = Array{S,2}(undef,size(multi_index))
+
+  @inbounds for i in eachindex(multi_index)
+    m_node_number[i] = m_i(multi_index[i])
   end
 
   return m_node_number

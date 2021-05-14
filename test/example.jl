@@ -63,7 +63,7 @@ function test_smolyak_approx()
 
   mu = 3
   grid_full, multi_ind_full = smolyak_grid_full(chebyshev_gauss_lobatto,d,mu) # Construct the Smolyak grid and the multi index
-  y_full = test(grid_full)                                                    # Evaluate the test function on the Smolyak grid
+  y_full = test(grid_full)
   weights_full = smolyak_weights_full(y_full,grid_full,multi_ind_full)        # Compute the Smolyak weights
   y_hat_full = smolyak_evaluate_full(weights_full,point,multi_ind_full)       # Evaluate the approximated function
 

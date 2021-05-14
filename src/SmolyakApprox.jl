@@ -18,20 +18,19 @@ include("smolyak_full_grid.jl")
 include("smolyak_piecewise_linear.jl")
 
 export chebyshev_gauss_lobatto,
-       legendre_gauss_lobatto,
        clenshaw_curtis_equidistant,
        smolyak_grid,
-       m_i,
        smolyak_weights,
        smolyak_inverse_interpolation_matrix,
        smolyak_evaluate,
-       chebyshev_polynomial_derivative,
        smolyak_derivative_finite_difference,
        smolyak_derivative,
+       smolyak_gradient,
        smolyak_grid_full,
        smolyak_weights_full,
        smolyak_evaluate_full,
        smolyak_derivative_full,
+       smolyak_gradient_full,
        smolyak_pl_weights,
        smolyak_pl_evaluate
 

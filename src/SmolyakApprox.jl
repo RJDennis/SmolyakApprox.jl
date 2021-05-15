@@ -22,7 +22,9 @@ export chebyshev_gauss_lobatto,
        clenshaw_curtis_equidistant,
        smolyak_grid,
        smolyak_weights,
+       smolyak_weights_threaded,
        smolyak_inverse_interpolation_matrix,
+       smolyak_inverse_interpolation_matrix_threaded,
        smolyak_evaluate,
        smolyak_derivative_finite_difference,
        smolyak_derivative,
@@ -33,6 +35,7 @@ export chebyshev_gauss_lobatto,
        smolyak_derivative_full,
        smolyak_gradient_full,
        smolyak_pl_weights,
+       smolyak_pl_weights_threaded,
        smolyak_pl_evaluate
 
 end

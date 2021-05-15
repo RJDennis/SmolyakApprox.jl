@@ -53,11 +53,13 @@ function test_smolyak_approx()
   y = test(grid)
   weights = smolyak_weights(y,grid,multi_ind)                   # Compute the Smolyak weights
   y_hat_ansio = smolyak_evaluate(weights,point,multi_ind)       # Evaluate the approximated function
+  weights_th = smolyak_weights_threaded(y,grid,multi_ind)                   # Compute the Smolyak weights
 
   g3, m3 =  smolyak_grid(clenshaw_curtis_equidistant,d,mu)
   y_pl = test(g3)
   w_pl_ansio = smolyak_pl_weights(y_pl,g3,m3)
   y_pl_hat_ansio = smolyak_pl_evaluate(w_pl,point,g3,m3)
+  w_pl_ansio_th = smolyak_pl_weights_threaded(y_pl,g3,m3)
 
   # Now test the full grid results
 

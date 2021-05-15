@@ -1,5 +1,6 @@
 module SmolyakApprox
 using LinearAlgebra
+using ThreadPools
 
 include("chebyshev_gauss_lobatto.jl")
 include("clenshaw_curtis_equidistant.jl")

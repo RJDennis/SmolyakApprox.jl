@@ -1,4 +1,5 @@
 module SmolyakApprox
+
 using LinearAlgebra
 using ThreadPools
 

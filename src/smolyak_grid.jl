@@ -41,6 +41,10 @@ function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}}) where {S
   # Eventually this function should also return the weights at each node on the grid
   # so that it can be used for numerical integration.
 
+  if d == 1
+    nodes = nodes[:]
+  end
+
   return nodes, multi_index
 
 end

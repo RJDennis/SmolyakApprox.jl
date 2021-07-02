@@ -13,12 +13,12 @@ function generate_multi_index(d::S,mu::Array{S,1}) where {S<:Integer}
   @inbounds for i = 2:(max_mu+1)^d
     candidate_index = Tuple(CartesianIndices(w)[i])
     if sum(candidate_index) <= d+max_mu && sum(candidate_index .<= mu.+1) == d
-      if j < nt
+      #if j < nt
         j += 1
         multi_index[j,:] = [candidate_index...]
-      else # handles case where nt is under-estimated
-        multi_index = [multi_index; collect(candidate_index)']
-      end
+      #else # handles case where nt is under-estimated (this branch is not used?)
+      #  multi_index = [multi_index; collect(candidate_index)']
+      #end
     end
   end
   if j < nt # handles case where nt is over-estimated
@@ -53,7 +53,7 @@ end
 
 # Following function computes the number of terms in the multi-index for the 
 # isotropic case (it also computes the number of terms in a complete 
-# polynominal based on the order and the number of dimensions. 
+# polynominal based on the order and the number of dimensions.
 
 function num_terms(order::S,d::S) where {S <: Integer}
 
@@ -70,7 +70,8 @@ end
 
 function num_terms(order::Array{S,1},d::S) where {S <: Integer}
 
-  nt = div(prod(order.+2),2^(d-1)) # Deliberate over-estimate of the number of terms
+  max_mu = maximum(order)
+  nt = num_terms(max_mu,d) # Deliberate over-estimate of the number of terms
   
   return nt
 

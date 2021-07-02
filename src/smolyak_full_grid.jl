@@ -40,6 +40,10 @@ function smolyak_grid_full(node_type::Function,d::S,mu::S) where {S<:Integer}
     l += m
   end
 
+  if d == 1
+    nodes = nodes[:]
+  end
+
   return nodes, multi_index_full
 
 end

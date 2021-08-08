@@ -11,7 +11,7 @@ Pkg.add("SmolyakApprox")
 
 Then the package can be used by typing
 
-```
+```julia
 using SmolyakApprox
 ```
 
@@ -20,7 +20,7 @@ Chebyshev polynomials
 
 The nodes are computed using Chebyshev-Gauss-Lobatto, with the approximation grid and the multi-index computed by
 
-```
+```julia
 grid, multi_ind = smolyak_grid(chebyshev_gauss_lobatto,d,mu,domain)
 ```
 
@@ -28,25 +28,25 @@ where `d` is the dimension of the function, `mu` is the layer or approximation o
 
 With the grid and multi-index in hand, we can compute the weights, or coefficients in the approximation, according to
 
-```
+```julia
 weights = smolyak_weights(y,grid,multi_ind,domain)
 ```
 
 where `y` is a 1d-array containing the evaluations at each grid point of the function being approximated.  Computation of the weights can be made more efficient by computing the inverse interpolation matrix (this generally needs to be done only once, outside any loops)
 
-```
+```julia
 inv_interp_mat = smolyak_inverse_interpolation_matrix(grid,multi_ind,domain)
 ```
 
 with the weights now computed through
 
-```
+```julia
 weights = smolyak_weights(y,inv_interp_mat)
 ```
 
 Lastly, we can evaluate the Smolyak approximation of the function at any point in the domain by
 
-```
+```julia
 y_hat = smolyak_evaluate(weights,point,multi_ind,domain)
 ```
 
@@ -57,19 +57,19 @@ Piecewise linear
 
 For piecewise linear approximation equidistant nodes are used where the number of nodes is determined according to the Clenshaw-Curtis grid structure: 2^(mu-1)+1
 
-```
+```julia
 grid, multi_ind = smolyak_grid(clenshaw_curtis_equidistant,d,mu,domain)
 ```
 
 Then the weights are computed using
 
-```
+```julia
 weights = smolyak_pl_weights(y,grid,multi_ind,domain)
 ```
 
 and the approximation computed via
 
-```
+```julia
 y_hat = smolyak_pl_evaluate(weights,point,grid,multi_ind,domain)
 ```
 

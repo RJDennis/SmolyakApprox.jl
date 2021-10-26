@@ -60,16 +60,18 @@ end
 
 function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}},pos::S) where {T<:AbstractFloat,S<:Integer}
 
+  nodes = copy(node)
+
   if size(domain,2) != length(node)
     error("domain is inconsistent with the number of dimensions")
   end
 
   d = length(node)
   for i = 1:d
-    node[i] = normalize_node(node[i],domain[:,i])
+    nodes[i] = normalize_node(node[i],domain[:,i])
   end
 
-  evaluated_derivative = smolyak_derivative(weights,node,multi_index,pos)
+  evaluated_derivative = smolyak_derivative(weights,nodes,multi_index,pos)
 
   return evaluated_derivative
 

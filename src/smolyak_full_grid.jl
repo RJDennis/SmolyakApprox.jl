@@ -206,6 +206,7 @@ end
 function smolyak_weights_full(y_f::Array{T,1},grid::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2},domain::Array{T,2}) where {S<:Integer, T<:AbstractFloat}
 
   d = size(multi_index,2)
+  grid = copy(grid)
   for i = 1:d
     grid[:,i] = normalize_node(grid[:,i],domain[:,i])
   end
@@ -241,6 +242,7 @@ end
 function smolyak_evaluate_full(weights::Array{Array{T,1},1},point::Array{T,1},multi_index::Array{S,2},domain::Array{T,2}) where {S<:Integer, T<:AbstractFloat}
 
   d = size(multi_index,2)
+  point = copy(point)
   for i = 1:d
     point[i] = normalize_node(point[i],domain[:,i])
   end
@@ -313,6 +315,7 @@ end
 function smolyak_derivative_full(weights::Array{Array{T,1},1},point::Array{T,1},multi_index::Array{S,2},domain::Array{T,2},pos::S) where {S<:Integer, T<:AbstractFloat}
 
   d = size(multi_index,2)
+  point = copy(point)
   for i = 1:d
     point[i] = normalize_node(point[i],domain[:,i])
   end

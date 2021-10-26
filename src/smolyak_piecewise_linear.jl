@@ -46,6 +46,7 @@ function smolyak_pl_weights(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{
   # Normalize nodes to the [-1.0 1.0] interval
 
   d = size(multi_index,2)
+  nodes = copy(nodes)
   @inbounds for i = 1:d
     nodes[:,i] = normalize_node(nodes[:,i],domain[:,i])
   end
@@ -104,6 +105,7 @@ function smolyak_pl_weights_threaded(y::AbstractArray{T,1},nodes::Union{Array{T,
   # Normalize nodes to the [-1.0 1.0] interval
 
   d = size(multi_index,2)
+  nodes = copy(nodes)
   @inbounds for i = 1:d
     nodes[:,i] = normalize_node(nodes[:,i],domain[:,i])
   end
@@ -159,6 +161,8 @@ end
 function smolyak_pl_evaluate(weights::Array{T,1},point::Array{T,1},nodes::Array{T,2},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
 
   d = size(multi_index,2)
+  nodes = copy(nodes)
+  pont = copy(point)
   @inbounds for i = 1:d
     nodes[:,i] = normalize_node(nodes[:,i],domain[:,i])
     point[i] = normalize_node(point[i],domain[:,i])

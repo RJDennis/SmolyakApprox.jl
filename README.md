@@ -1,6 +1,6 @@
 # SmolyakApprox.jl
 
-This package implements Smolyak's method for approximating multivariate continuous functions.  Two different types of interpolation schemes are allowed: Chebyshev polynomials or piecewise linear.
+This package implements Smolyak's method for approximating multivariate continuous functions.  Two different types of interpolation schemes are allowed: Chebyshev polynomials and piecewise linear.
 
 To install this package you need to type in the REPL
 

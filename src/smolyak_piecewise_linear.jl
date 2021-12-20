@@ -116,14 +116,14 @@ function smolyak_pl_weights_threaded(y::AbstractArray{T,1},nodes::Union{Array{T,
 
 end
 
-function smolyak_pl_evaluate(weights::Array{T,1},point::Array{T,1},nodes::Array{T,2},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_pl_evaluate(weights::Array{T,1},point::Array{R,1},nodes::Array{T,2},multi_index::Array{S,2}) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
-  basis = zeros(size(nodes,1))
+  basis = Array{R,1}(undef,size(nodes,1))
   k = 1
   @inbounds for i = 1:size(multi_index,1)
     m_node_number = m_i(multi_index[i,:])
     if prod(m_node_number) == 1
-      basis[k] = 1.0
+      basis[k] = one(R)
       k += 1
     else
       extra_nodes = 1
@@ -137,9 +137,9 @@ function smolyak_pl_evaluate(weights::Array{T,1},point::Array{T,1},nodes::Array{
         @inbounds for j = 1:length(m_node_number)
           if m_node_number[j] > 1
             if abs(point[j] - nodes[k,j]) > 2/(m_node_number[j]-1)
-              a *= 0.0
+              a *= zero(R)
             else
-              a *= 1.0 - ((m_node_number[j]-1)/2)*abs(point[j]-nodes[k,j])
+              a *= one(R) - ((m_node_number[j]-1)/2)*abs(point[j]-nodes[k,j])
             end
           end
         end
@@ -149,7 +149,7 @@ function smolyak_pl_evaluate(weights::Array{T,1},point::Array{T,1},nodes::Array{
     end
   end
 
-  estimate = zero(T)
+  estimate = zero(R)
   @inbounds for i = 1:length(basis)
     estimate += basis[i]*weights[i]
   end
@@ -158,11 +158,11 @@ function smolyak_pl_evaluate(weights::Array{T,1},point::Array{T,1},nodes::Array{
 
 end
 
-function smolyak_pl_evaluate(weights::Array{T,1},point::Array{T,1},nodes::Array{T,2},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_pl_evaluate(weights::Array{T,1},point::Array{R,1},nodes::Array{T,2},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
   d = size(multi_index,2)
   nodes = copy(nodes)
-  pont = copy(point)
+  point = copy(point)
   @inbounds for i = 1:d
     nodes[:,i] = normalize_node(nodes[:,i],domain[:,i])
     point[i] = normalize_node(point[i],domain[:,i])
@@ -178,7 +178,7 @@ end
 
 function smolyak_pl_evaluate(weights::Array{T,1},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
 
-  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+  function goo(x::Array{R,1}) where {R<:Number}
 
     return smolyak_pl_evaluate(weights,x,multi_index)
 
@@ -190,7 +190,7 @@ end
 
 function smolyak_pl_evaluate(weights::Array{T,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
 
-  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+  function goo(x::Array{R,1}) where {R<:Number}
 
     return smolyak_pl_evaluate(weights,x,multi_index,domain)
 

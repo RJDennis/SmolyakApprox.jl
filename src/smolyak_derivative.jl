@@ -1,12 +1,12 @@
-function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},pos::S) where {T<:AbstractFloat,S<:Integer}
+function smolyak_derivative(weights::Array{T,1},node::Array{R,1},multi_index::Array{S,2},pos::S) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders = m_i(unique_multi_index).-1
 
   # Here we construct the base polynomials
 
-  base_polynomials = Array{Array{T,2},1}(undef,length(unique_orders))
-  base_polynomial_derivatives = Array{Array{T,2},1}(undef,length(unique_orders))
+  base_polynomials = Array{Array{R,2},1}(undef,length(unique_orders))
+  base_polynomial_derivatives = Array{Array{R,2},1}(undef,length(unique_orders))
   for i = 1:length(unique_orders)
     base_polynomials[i] = chebyshev_polynomial(unique_orders[i],node)
     base_polynomial_derivatives[i] = chebyshev_polynomial_derivative(unique_orders[i],node)
@@ -14,8 +14,8 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
 
   # Compute the unique polynomial terms from the base polynomials
 
-  unique_base_polynomials = Array{Array{T,2},1}(undef,length(unique_orders))
-  unique_base_polynomial_derivatives = Array{Array{T,2},1}(undef,length(unique_orders))
+  unique_base_polynomials = Array{Array{R,2},1}(undef,length(unique_orders))
+  unique_base_polynomial_derivatives = Array{Array{R,2},1}(undef,length(unique_orders))
   for i = length(unique_orders):-1:2
     unique_base_polynomials[i] = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
     unique_base_polynomial_derivatives[i] = base_polynomial_derivatives[i][:,size(base_polynomial_derivatives[i-1],2)+1:end]
@@ -25,7 +25,7 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
 
   # Construct the first row of the interplation matrix
 
-  polynomials = Array{T,1}(undef,length(weights))
+  polynomials = Array{R,1}(undef,length(weights))
 
   # Iterate over nodes, doing the above three steps at each iteration
 
@@ -58,9 +58,9 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
 
 end
 
-function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}},pos::S) where {T<:AbstractFloat,S<:Integer}
+function smolyak_derivative(weights::Array{T,1},node::Array{R,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}},pos::S) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
-  nodes = copy(node)
+  node = copy(node)
 
   if size(domain,2) != length(node)
     error("domain is inconsistent with the number of dimensions")
@@ -68,19 +68,19 @@ function smolyak_derivative(weights::Array{T,1},node::Array{T,1},multi_index::Ar
 
   d = length(node)
   for i = 1:d
-    nodes[i] = normalize_node(node[i],domain[:,i])
+    node[i] = normalize_node(node[i],domain[:,i])
   end
 
-  evaluated_derivative = smolyak_derivative(weights,nodes,multi_index,pos)
+  evaluated_derivative = smolyak_derivative(weights,node,multi_index,pos)
 
   return evaluated_derivative
 
 end
 
-function smolyak_gradient(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_gradient(weights::Array{T,1},node::Array{R,1},multi_index::Array{S,2}) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
   d = length(node)
-  gradient = Array{T,2}(undef,1,d)
+  gradient = Array{R,2}(undef,1,d)
 
   for i = 1:d
     gradient[i] = smolyak_derivative(weights,node,multi_index,i)
@@ -90,10 +90,10 @@ function smolyak_gradient(weights::Array{T,1},node::Array{T,1},multi_index::Arra
 
 end
 
-function smolyak_gradient(weights::Array{T,1},node::Array{T,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_gradient(weights::Array{T,1},node::Array{R,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
   d = length(node)
-  gradient = Array{T,2}(undef,1,d)
+  gradient = Array{R,2}(undef,1,d)
 
   for i = 1:d
     gradient[i] = smolyak_derivative(weights,node,multi_index,domain,i)
@@ -103,12 +103,11 @@ function smolyak_gradient(weights::Array{T,1},node::Array{T,1},multi_index::Arra
 
 end
 
-
 #########################################################################
 
 function smolyak_gradient(weights::Array{T,1},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
 
-  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+  function goo(x::Array{R,1}) where {R<:Number}
 
     return smolyak_gradient(weights,x,multi_index)
 
@@ -120,7 +119,7 @@ end
 
 function smolyak_gradient(weights::Array{T,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
 
-  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+  function goo(x::Array{R,1}) where {R<:Number}
 
     return smolyak_gradient(weights,x,multi_index,domain)
 
@@ -132,7 +131,7 @@ end
 
 function smolyak_derivative(weights::Array{T,1},multi_index::Array{S,2},pos::S) where {T<:AbstractFloat,S<:Integer}
 
-  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+  function goo(x::Array{R,1}) where {R<:Number}
 
     return smolyak_derivative(weights,x,multi_index,pos)
 
@@ -144,7 +143,7 @@ end
 
 function smolyak_derivative(weights::Array{T,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}},pos::S) where {T<:AbstractFloat,S<:Integer}
 
-  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+  function goo(x::Array{R,1}) where {R<:Number}
 
     return smolyak_derivative(weights,x,multi_index,domain,pos)
 

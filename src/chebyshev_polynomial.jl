@@ -1,8 +1,8 @@
-function chebyshev_polynomial(order::S,x::Array{T,1}) where {T<:AbstractFloat,S<:Integer}
+function chebyshev_polynomial(order::S,x::Array{R,1}) where {T<:Number,S<:Integer}
 
-  polynomial      = Array{T}(undef,length(x),order+1)
-  polynomial[:,1] = ones(T,length(x))
-  
+  polynomial      = Array{R}(undef,length(x),order+1)
+  polynomial[:,1] = ones(R,length(x))
+
   for i = 2:order+1
       for j = 1:length(x)
       if i == 2
@@ -12,15 +12,15 @@ function chebyshev_polynomial(order::S,x::Array{T,1}) where {T<:AbstractFloat,S<
       end
     end
   end
-  
+
   return polynomial
-  
+
 end
 
-function chebyshev_polynomial(order::S,x::T) where {T<:AbstractFloat,S<:Integer}
+function chebyshev_polynomial(order::S,x::R) where {R<:Number,S<:Integer}
 
-  polynomial = ones(T,1,order+1)
-  
+  polynomial = ones(R,1,order+1)
+
   for i = 2:order+1
     if i == 2
       polynomial[1,i] = x
@@ -28,7 +28,7 @@ function chebyshev_polynomial(order::S,x::T) where {T<:AbstractFloat,S<:Integer}
       polynomial[1,i] = 2*x*polynomial[1,i-1]-polynomial[1,i-2]
     end
   end
-  
+
   return polynomial
-  
+
 end

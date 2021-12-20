@@ -40,10 +40,6 @@ function smolyak_grid_full(node_type::Function,d::S,mu::S) where {S<:Integer}
     l += m
   end
 
-  if d == 1
-    nodes = nodes[:]
-  end
-
   return nodes, multi_index_full
 
 end
@@ -114,18 +110,18 @@ function master_index(multi_index::Array{S,2}) where {S<:Integer}
 
 end
 
-function cheb_poly(order::S,x::T) where {S<:Integer, T<:AbstractFloat}
+function cheb_poly(order::S,x::R) where {S<:Integer,R<:Number}
 
-  p  = 1.0
-  p1 = 0.0
-  p2 = 0.0
+  p  = one(R)
+  p1 = zero(R)
+  p2 = zero(R)
 
   for i = 2:order+1
     if i == 2
-	  p1, p = p, x
+      p1, p = p, x
     else
       p2, p1 = p1, p
-  	  p  = 2*x*p1-p2
+        p  = 2*x*p1-p2
     end
   end
 
@@ -179,9 +175,9 @@ function smolyak_weights_full(y_f::Array{T,1},grid::Union{Array{T,1},Array{T,2}}
     ws = zeros(g_ind[i,2])
     poly_grid = grid[g_ind[i,1]:g_ind[i,1]+g_ind[i,2]-1,:]
     poly_y    = y_f[g_ind[i,1]:g_ind[i,1]+g_ind[i,2]-1]
-	  if size(grid,1) == 1 # This is to accommodate the mu = 0 case
-	    cjs_prod = ones(size(poly_grid,1))
-	  else
+      if size(grid,1) == 1 # This is to accommodate the mu = 0 case
+        cjs_prod = ones(size(poly_grid,1))
+      else
       cjs_prod = prod_cjs(max_grid,min_grid,poly_grid)
     end
     @inbounds for l = 1:g_ind[i,2] # This loops over the weights
@@ -217,18 +213,18 @@ function smolyak_weights_full(y_f::Array{T,1},grid::Union{Array{T,1},Array{T,2}}
 
 end
 
-function smolyak_evaluate_full(weights::Array{Array{T,1},1},point::Array{T,1},multi_index::Array{S,2}) where {S<:Integer, T<:AbstractFloat}
+function smolyak_evaluate_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2}) where {S<:Integer,R<:Number,T<:AbstractFloat}
 
   d = size(multi_index,2)
 
   evaluated_polynomials = zeros(size(multi_index,1))
 
   @inbounds for i = 1:size(multi_index,1) # This loops over the number of polynomials
-  	@inbounds for l = 1:length(weights[i])
+    @inbounds for l = 1:length(weights[i])
       ll = CartesianIndices(Tuple(m_i(multi_index[i:i,:])))[l]
       temp = weights[i][l]*cheb_poly(ll[1]-1,point[1])
       @inbounds for k = 2:d
-  	    temp *= cheb_poly(ll[k]-1,point[k])
+        temp *= cheb_poly(ll[k]-1,point[k])
       end
       evaluated_polynomials[i] += temp
     end
@@ -239,7 +235,7 @@ function smolyak_evaluate_full(weights::Array{Array{T,1},1},point::Array{T,1},mu
 
 end
 
-function smolyak_evaluate_full(weights::Array{Array{T,1},1},point::Array{T,1},multi_index::Array{S,2},domain::Array{T,2}) where {S<:Integer, T<:AbstractFloat}
+function smolyak_evaluate_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2},domain::Array{T,2}) where {S<:Integer,R<:Number,T<:AbstractFloat}
 
   d = size(multi_index,2)
   point = copy(point)
@@ -253,7 +249,7 @@ function smolyak_evaluate_full(weights::Array{Array{T,1},1},point::Array{T,1},mu
 
 end
 
-function deriv_cheb_poly(order::S,x::T) where {S<:Integer, T<:AbstractFloat}
+function deriv_cheb_poly(order::S,x::R) where {S<:Integer,R<:Number}
 
   p0 = one(T)
   p1 = zero(T)
@@ -264,13 +260,13 @@ function deriv_cheb_poly(order::S,x::T) where {S<:Integer, T<:AbstractFloat}
 
   for i = 2:order+1
     if i == 2
-	  p1, p0 = p0, x
-	  pd1, pd0 = pd0, one(T)
+      p1, p0 = p0, x
+      pd1, pd0 = pd0, one(T)
     else
       p2, p1 = p1, p0
       pd2, pd1 = pd1, pd0
-  	  p0  = 2*x*p1-p2
-      pd0 = 2*p1+2*x*pd1-pd2 
+        p0  = 2*x*p1-p2
+      pd0 = 2*p1+2*x*pd1-pd2
     end
   end
 
@@ -278,7 +274,7 @@ function deriv_cheb_poly(order::S,x::T) where {S<:Integer, T<:AbstractFloat}
 
 end
 
-function smolyak_derivative_full(weights::Array{Array{T,1},1},point::Array{T,1},multi_index::Array{S,2},pos::S) where {S<:Integer, T<:AbstractFloat}
+function smolyak_derivative_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2},pos::S) where {S<:Integer,R<:Number,T<:AbstractFloat}
 
   mi = sum(multi_index,dims=2)
   d  = size(multi_index,2)
@@ -300,10 +296,10 @@ function smolyak_derivative_full(weights::Array{Array{T,1},1},point::Array{T,1},
         else
           temp *= cheb_poly(ll[k]-1,point[k])
         end
-	    end
-	    evaluated_polynomials[i] += temp
+      end
+      evaluated_polynomials[i] += temp
     end
-	  #evaluated_polynomials[i] *= (-1)^(d+mu-mi[i])*factorial(d-1)/(factorial(d+mu-mi[i])*factorial(-1-mu+mi[i]))
+    #evaluated_polynomials[i] *= (-1)^(d+mu-mi[i])*factorial(d-1)/(factorial(d+mu-mi[i])*factorial(-1-mu+mi[i]))
   end
 
   evaluated_derivative = sum(evaluated_polynomials)
@@ -312,7 +308,7 @@ function smolyak_derivative_full(weights::Array{Array{T,1},1},point::Array{T,1},
 
 end
 
-function smolyak_derivative_full(weights::Array{Array{T,1},1},point::Array{T,1},multi_index::Array{S,2},domain::Array{T,2},pos::S) where {S<:Integer, T<:AbstractFloat}
+function smolyak_derivative_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2},domain::Array{T,2},pos::S) where {S<:Integer,R<:Number,T<:AbstractFloat}
 
   d = size(multi_index,2)
   point = copy(point)
@@ -326,11 +322,11 @@ function smolyak_derivative_full(weights::Array{Array{T,1},1},point::Array{T,1},
 
 end
 
-function smolyak_gradient_full(weights::Array{Array{T,1},1},point::Array{T,1},multi_index::Array{S,2}) where {S<:Integer, T<:AbstractFloat}
+function smolyak_gradient_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2}) where {S<:Integer,R<:Number,T<:AbstractFloat}
 
   d = size(multi_index,2)
-  
-  gradient = Array{T,2}(undef,1,d)
+
+  gradient = Array{R,2}(undef,1,d)
   for i = 1:d
     gradient[i] = smolyak_derivative_full(weights,point,multi_index,i)
   end
@@ -339,11 +335,11 @@ function smolyak_gradient_full(weights::Array{Array{T,1},1},point::Array{T,1},mu
 
 end
 
-function smolyak_gradient_full(weights::Array{Array{T,1},1},point::Array{T,1},multi_index::Array{S,2},domain::Array{T,2}) where {S<:Integer, T<:AbstractFloat}
+function smolyak_gradient_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2},domain::Array{T,2}) where {S<:Integer,R<:Number,T<:AbstractFloat}
 
   d = size(multi_index,2)
-  
-  gradient = Array{T,2}(undef,1,d)
+
+  gradient = Array{R,2}(undef,1,d)
   for i = 1:d
     gradient[i] = smolyak_derivative_full(weights,point,multi_index,domain,i)
   end
@@ -356,7 +352,7 @@ end
 
 function smolyak_evaluate_full(weights::Array{T,1},multi_index_full::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
 
-  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+  function goo(x::Array{R,1}) where {R<:Number}
 
     return smolyak_evaluate_full(weights,x,multi_index_full)
 
@@ -368,7 +364,7 @@ end
 
 function smolyak_evaluate_full(weights::Array{T,1},multi_index_full::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
 
-  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+  function goo(x::Array{R,1}) where {R<:Number}
 
     return smolyak_evaluate_full(weights,x,multi_index_full,domain)
 
@@ -380,7 +376,7 @@ end
 
 function smolyak_derivative_full(weights::Array{T,1},multi_index_full::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
 
-  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+  function goo(x::Array{R,1}) where {R<:Number}
 
     return smolyak_derivative_full(weights,x,multi_index_full)
 
@@ -392,7 +388,7 @@ end
 
 function smolyak_derivative_full(weights::Array{T,1},multi_index_full::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
 
-  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+  function goo(x::Array{R,1}) where {R<:Number}
 
     return smolyak_derivative_full(weights,x,multi_index_full,domain)
 
@@ -404,7 +400,7 @@ end
 
 function smolyak_derivative_full(weights::Array{T,1},multi_index_full::Array{S,2},pos::Array{S,1}) where {T<:AbstractFloat,S<:Integer}
 
-  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+  function goo(x::Array{R,1}) where {R<:Number}
 
     return smolyak_derivative_full(weights,x,multi_index_full,pos)
 
@@ -416,7 +412,7 @@ end
 
 function smolyak_derivative_full(weights::Array{T,1},multi_index_full::Array{S,2},domain::Union{Array{T,1},Array{T,2}},pos::Array{S,1}) where {T<:AbstractFloat,S<:Integer}
 
-  function goo(x::Array{T,1}) where {T <: AbstractFloat}
+  function goo(x::Array{R,1}) where {R<:Number}
 
     return smolyak_derivative_full(weights,x,multi_index_full,domain,pos)
 

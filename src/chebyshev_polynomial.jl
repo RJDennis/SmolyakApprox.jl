@@ -1,4 +1,4 @@
-function chebyshev_polynomial(order::S,x::Array{R,1}) where {T<:Number,S<:Integer}
+function chebyshev_polynomial(order::S,x::Array{R,1}) where {R<:Number,S<:Integer}
 
   polynomial      = Array{R}(undef,length(x),order+1)
   polynomial[:,1] = ones(R,length(x))

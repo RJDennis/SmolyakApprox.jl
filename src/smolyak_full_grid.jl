@@ -251,17 +251,17 @@ end
 
 function deriv_cheb_poly(order::S,x::R) where {S<:Integer,R<:Number}
 
-  p0 = one(T)
-  p1 = zero(T)
-  p2 = zero(T)
-  pd0 = zero(T)
-  pd1 = zero(T)
-  pd2 = zero(T)
+  p0 = one(R)
+  p1 = zero(R)
+  p2 = zero(R)
+  pd0 = zero(R)
+  pd1 = zero(R)
+  pd2 = zero(R)
 
   for i = 2:order+1
     if i == 2
       p1, p0 = p0, x
-      pd1, pd0 = pd0, one(T)
+      pd1, pd0 = pd0, one(R)
     else
       p2, p1 = p1, p0
       pd2, pd1 = pd1, pd0

@@ -85,7 +85,7 @@ end
 
 function smolyak_evaluate(weights::Array{T,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
 
-  function goo(x::Array{R,1}) where {R<Number}
+  function goo(x::Array{R,1}) where {R<:Number}
 
     return smolyak_evaluate(weights,x,multi_index,domain)
 

@@ -171,7 +171,7 @@ function smolyak_weights_full(y_f::Array{T,1},grid::Union{Array{T,1},Array{T,2}}
   weights = Array{Array{T,1},1}(undef,size(multi_index,1))
   g_ind = master_index(multi_index)
 
-  @inbounds @views for i = 1:size(g_ind,1) # This loops over the number of polynomials
+  @inbounds for i = 1:size(g_ind,1) # This loops over the number of polynomials
     ws = zeros(g_ind[i,2])
     poly_grid = grid[g_ind[i,1]:g_ind[i,1]+g_ind[i,2]-1,:]
     poly_y    = y_f[g_ind[i,1]:g_ind[i,1]+g_ind[i,2]-1]

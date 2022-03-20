@@ -66,6 +66,20 @@ function generate_multi_index(d::S,mu::S) where {S<:Integer}
   end
 end    
   
+# Following function computes the number of terms in the multi-index for the
+# isotropic case (it also computes the number of terms in a complete
+# polynominal based on the order and the number of dimensions.
+
+function num_terms(order::S,d::S) where {S <: Integer}
+
+  if d == 1
+    return order+1
+  else
+    return div(num_terms(order,d-1)*(order+d),d)
+  end
+
+end
+
 # The following function is a poor approximation to the number of terms in
 # the multi-index for the ansiotropic case.
 

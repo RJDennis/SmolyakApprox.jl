@@ -136,7 +136,7 @@ function smolyak_evaluate(weights::Array{T,1},node::AbstractArray{R,1},multi_ind
   
 end
 
-function smolyak_evaluate(weights::Array{T,1},polynomial::Array{T,1}) where {T<:AbstractFloat}
+function smolyak_evaluate(weights::Array{T,1},polynomial::Array{R,1}) where {T<:AbstractFloat,R<:Number}
 
   estimate = weights'polynomial
   

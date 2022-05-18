@@ -2,24 +2,24 @@ function smolyak_pl_weights(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{
 
   interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
 
-  @inbounds for l = 1:size(nodes,1)
+  @inbounds for l in axes(nodes,1)
     k = 1
     x = nodes[l,:]
-    @inbounds for i = 1:size(multi_index,1)
+    @inbounds for i in axes(multi_index,1)
       m_node_number = m_i(multi_index[i,:])
       if prod(m_node_number) == 1
         interpolation_matrix[l,k] = 1.0
         k += 1
       else
         extra_nodes = 1
-        @inbounds for j = 1:length(m_node_number)
+        @inbounds for j in eachindex(m_node_number)
           if m_node_number[j] > 1
             extra_nodes *= m_node_number[j] - m_i(multi_index[i,j]-1)
           end
         end
         for h = 1:extra_nodes
           a = 1.0
-          @inbounds for j = 1:length(m_node_number)
+          @inbounds for j in eachindex(m_node_number)
             if m_node_number[j] > 1
               if abs(x[j] - nodes[k,j]) > 2/(m_node_number[j]-1)
                 a *= 0.0
@@ -61,24 +61,24 @@ function smolyak_pl_weights_threaded(y::AbstractArray{T,1},nodes::Union{Array{T,
 
   interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
 
-  @inbounds @sync @qthreads for l = 1:size(nodes,1)
+  @inbounds @sync @qthreads for l in axes(nodes,1)
     k = 1
     x = nodes[l,:]
-    @inbounds for i = 1:size(multi_index,1)
+    @inbounds for i in axes(multi_index,1)
       m_node_number = m_i(multi_index[i,:])
       if prod(m_node_number) == 1
         interpolation_matrix[l,k] = 1.0
         k += 1
       else
         extra_nodes = 1
-        @inbounds for j = 1:length(m_node_number)
+        @inbounds for j in eachindex(m_node_number)
           if m_node_number[j] > 1
             extra_nodes *= m_node_number[j] - m_i(multi_index[i,j]-1)
           end
         end
         for h = 1:extra_nodes
           a = 1.0
-          @inbounds for j = 1:length(m_node_number)
+          @inbounds for j in eachindex(m_node_number)
             if m_node_number[j] > 1
               if abs(x[j] - nodes[k,j]) > 2/(m_node_number[j]-1)
                 a *= 0.0
@@ -120,21 +120,21 @@ function smolyak_pl_evaluate(weights::Array{T,1},point::Array{R,1},nodes::Array{
 
   basis = Array{R,1}(undef,size(nodes,1))
   k = 1
-  @inbounds for i = 1:size(multi_index,1)
+  @inbounds for i in axes(multi_index,1)
     m_node_number = m_i(multi_index[i,:])
     if prod(m_node_number) == 1
       basis[k] = one(R)
       k += 1
     else
       extra_nodes = 1
-      @inbounds for j = 1:length(m_node_number)
+      @inbounds for j in eachindex(m_node_number)
         if m_node_number[j] > 1
           extra_nodes *= m_node_number[j] - m_i(multi_index[i,j]-1)
         end
       end
       @inbounds for h = 1:extra_nodes
         a = 1.0
-        @inbounds for j = 1:length(m_node_number)
+        @inbounds for j in eachindex(m_node_number)
           if m_node_number[j] > 1
             if abs(point[j] - nodes[k,j]) > 2/(m_node_number[j]-1)
               a *= zero(R)
@@ -150,7 +150,7 @@ function smolyak_pl_evaluate(weights::Array{T,1},point::Array{R,1},nodes::Array{
   end
 
   estimate = zero(R)
-  @inbounds for i = 1:length(basis)
+  @inbounds for i in eachindex(basis)
     estimate += basis[i]*weights[i]
   end
 

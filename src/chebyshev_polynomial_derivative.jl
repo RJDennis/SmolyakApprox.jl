@@ -23,7 +23,7 @@ function chebyshev_polynomial_derivative(order::S,x::Array{R,1}) where {R<:Numbe
 
   poly_deriv = Array{R,2}(undef,length(x),order+1)
 
-  for i = 1:length(x)
+  for i in eachindex(x)
     poly_deriv[i,:] = chebyshev_polynomial_derivative(order,x[i])
   end
 

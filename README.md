@@ -75,6 +75,16 @@ y_hat = smolyak_pl_evaluate(weights,point,grid,multi_ind,domain)
 
 Again `mu` can be either an integer or a 1d array of integers depending on whether an isotropic or an anisotropic approximation is desired, and the argument `domain` is unnecessary where the grid resides on [-1,1]^d.
 
+Related packages
+----------------
+
+- ChebyshevApprox.jl
+- HyperbolicCrossApprox.jl
+- PiecewiseLinearApprox.jl
+
+References
+----------
+
 My primary references when writing this package were:
 
 Judd, K., Maliar, L., Maliar, S., and R. Valero, (2014), "Smolyak Method for Solving Dynamic Economic Models: Lagrange Interpolation, Anisotropic Grid and Adaptive Domain," Journal of Economic Dynamics and Control, 44, pp.92--123.

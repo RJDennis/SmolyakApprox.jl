@@ -12,7 +12,7 @@ function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}}) where {S
 
   base_nodes   = Array{Array{T,1},1}(undef,length(unique_node_number))
   base_weights = Array{Array{T,1},1}(undef,length(unique_node_number))
-  for i = 1:length(unique_node_number)
+  for i in eachindex(unique_node_number)
     base_nodes[i], base_weights[i] = node_type(unique_node_number[i])
   end
 
@@ -23,12 +23,12 @@ function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}}) where {S
   for i = 2:length(unique_base_nodes)
     unique_base_nodes[i] = setdiff(base_nodes[i],base_nodes[i-1])
   end
-  
+
   # Construct the sparse grid from the unique nodes
 
   nodes = Array{T,2}(undef,determine_grid_size(multi_index))
   l = 1
-  @inbounds for j = 1:size(multi_index,1)
+  @inbounds for j in axes(multi_index,1)
     new_nodes = unique_base_nodes[multi_index[j,1]]  # Here new_nodes is a 1d array
     for i = 2:d
       new_nodes = combine_nodes(new_nodes,unique_base_nodes[multi_index[j,i]])  # Here new_nodes becomes a 2d array
@@ -40,10 +40,6 @@ function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}}) where {S
 
   # Eventually this function should also return the weights at each node on the grid
   # so that it can be used for numerical integration.
-
-  if d == 1
-    nodes = nodes[:]
-  end
 
   return nodes, multi_index
 
@@ -72,8 +68,8 @@ function determine_grid_size(mi)
 
   temp = similar(mi)
 
-  for i = 1:size(mi,1)
-    for j = 1:size(mi,2)
+  for i in axes(mi,1)
+    for j in axes(mi,2)
       if mi[i,j] == 1
         temp[i,j] = 1
       elseif mi[i,j] == 2
@@ -85,9 +81,9 @@ function determine_grid_size(mi)
   end
 
   s = 0
-  for i = 1:size(mi,1)
+  for i in axes(mi,1)
     t = 1
-    for j = 1:size(mi,2)
+    for j in axes(mi,2)
       t *= temp[i,j]
     end
     s += t

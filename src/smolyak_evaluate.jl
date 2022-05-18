@@ -12,7 +12,7 @@ function smolyak_polynomial(node::AbstractArray{R,1},multi_index::Array{S,2}) wh
   # Here we construct the base polynomials
 
   base_polynomials = Array{Array{R,2}}(undef,length(unique_orders))
-  for i = 1:length(unique_orders)
+  for i in eachindex(unique_orders)
     base_polynomials[i] = chebyshev_polynomial(unique_orders[i],node)
   end
 
@@ -32,7 +32,7 @@ function smolyak_polynomial(node::AbstractArray{R,1},multi_index::Array{S,2}) wh
   # Iterate over nodes, doing the above three steps at each iteration
 
   l = 1
-  @inbounds for j = 1:size(multi_index,1)
+  @inbounds for j in axes(multi_index,1)
     new_polynomials = unique_base_polynomials[multi_index[j,1]][1,:]
     for i = 2:size(multi_index,2)
       new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][i,:])
@@ -79,7 +79,7 @@ function smolyak_evaluate(weights::Array{T,1},node::AbstractArray{R,1},multi_ind
   # Here we construct the base polynomials
   
   base_polynomials = Array{Array{R,2}}(undef,length(unique_orders))
-  for i = 1:length(unique_orders)
+  for i in eachindex(unique_orders)
     base_polynomials[i] = chebyshev_polynomial(unique_orders[i],node)
   end
   
@@ -98,7 +98,7 @@ function smolyak_evaluate(weights::Array{T,1},node::AbstractArray{R,1},multi_ind
   # Iterate over nodes, doing the above three steps at each iteration
   
   l = 1
-    @inbounds for j = 1:size(multi_index,1)
+    @inbounds for j in axes(multi_index,1)
     new_polynomials = unique_base_polynomials[multi_index[j,1]][1,:]
     for i = 2:size(multi_index,2)
       new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][i,:])
@@ -109,7 +109,7 @@ function smolyak_evaluate(weights::Array{T,1},node::AbstractArray{R,1},multi_ind
   end
   
   estimate = zero(T)
-  for i = 1:length(polynomials)
+  for i in eachindex(polynomials)
     estimate += polynomials[i]*weights[i]
   end
   

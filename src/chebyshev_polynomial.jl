@@ -4,7 +4,7 @@ function chebyshev_polynomial(order::S,x::Array{R,1}) where {R<:Number,S<:Intege
   polynomial[:,1] = ones(R,length(x))
 
   for i = 2:order+1
-      for j = 1:length(x)
+      for j in eachindex(x)
       if i == 2
         polynomial[j,i] = x[j]
       else

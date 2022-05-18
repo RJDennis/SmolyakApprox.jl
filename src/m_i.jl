@@ -1,11 +1,11 @@
 function m_i(multi_index::S) where {S <: Integer}
 
   if multi_index == 1
-	  m_node_number = one(S)
+    m_node_number = one(S)
   else
-	  m_node_number = 2^(multi_index-1)+1
+    m_node_number = 2^(multi_index-1)+1
    end
-  
+
   return m_node_number
 
 end

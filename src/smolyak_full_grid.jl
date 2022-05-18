@@ -10,7 +10,7 @@ function smolyak_grid_full(node_type::Function,d::S,mu::S) where {S<:Integer}
 
   base_nodes   = Array{Array{T,1},1}(undef,length(unique_node_number))
   base_weights = Array{Array{T,1},1}(undef,length(unique_node_number))
-  @inbounds for i = 1:length(unique_node_number)
+  @inbounds for i in eachindex(unique_node_number)
     base_nodes[i], base_weights[i] = node_type(unique_node_number[i])
   end
 
@@ -19,7 +19,7 @@ function smolyak_grid_full(node_type::Function,d::S,mu::S) where {S<:Integer}
   ii = (sum(multi_index,dims=2) .>= max(d,mu+1)).*(sum(multi_index,dims=2) .<= d+mu)
   multi_index_full = zeros(S,sum(ii),size(multi_index,2))
   j = 1
-  @inbounds for i = 1:size(multi_index,1)
+  @inbounds for i in axes(multi_index,1)
     if ii[i] == true
       multi_index_full[j,:] = multi_index[i,:]
       j += 1
@@ -30,7 +30,7 @@ function smolyak_grid_full(node_type::Function,d::S,mu::S) where {S<:Integer}
 
   nodes = Array{T,2}(undef,determine_grid_size_full(multi_index_full))
   l = 1
-  for j = 1:size(multi_index_full,1)
+  for j in axes(multi_index_full,1)
     new_nodes = base_nodes[multi_index_full[j,1]]  # Here new_nodes is a 1d array
     for i = 2:d
       new_nodes = combine_nodes(new_nodes,base_nodes[multi_index_full[j,i]])  # Here new_nodes becomes a 2d array
@@ -62,8 +62,8 @@ function determine_grid_size_full(mi)
 
   temp = similar(mi)
 
-  @inbounds for i = 1:size(mi,1)
-    @inbounds for j = 1:size(mi,2)
+  @inbounds for i in axes(mi,1)
+    @inbounds for j in axes(mi,2)
       if mi[i,j] == 1
         temp[i,j] = 1
       else
@@ -73,9 +73,9 @@ function determine_grid_size_full(mi)
   end
 
   s = 0
-  @inbounds for i = 1:size(mi,1)
+  @inbounds for i in axes(mi,1)
     t = 1
-    @inbounds for j = 1:size(mi,2)
+    @inbounds for j in axes(mi,2)
       t *= temp[i,j]
     end
     s += t
@@ -133,8 +133,8 @@ function prod_cjs(max_grid::Union{Array{T,1},Array{T,2}},min_grid::Union{Array{T
 
   cjs = ones(size(poly_grid))
 
-  @inbounds for i = 1:size(poly_grid,1)
-    @inbounds for j = 1:size(poly_grid,2)
+  @inbounds for i in axes(poly_grid,1)
+    @inbounds for j in axes(poly_grid,2)
       if poly_grid[i,j] == max_grid[j] || poly_grid[i,j] == min_grid[j]
         cjs[i,j] *= 2
       end
@@ -149,7 +149,7 @@ function compute_scale_factor(multi_index::Array{S,1}) where {S<:Integer}
 
   scale_factor = 1.0
 
-  @inbounds for i = 1:length(multi_index)
+  @inbounds for i in eachindex(multi_index)
     if multi_index[i] > 1
       scale_factor *= 2.0/(m_i(multi_index[i])-1)
     end
@@ -171,7 +171,7 @@ function smolyak_weights_full(y_f::Array{T,1},grid::Union{Array{T,1},Array{T,2}}
   weights = Array{Array{T,1},1}(undef,size(multi_index,1))
   g_ind = master_index(multi_index)
 
-  @inbounds for i = 1:size(g_ind,1) # This loops over the number of polynomials
+  @inbounds for i in axes(g_ind,1) # This loops over the number of polynomials
     ws = zeros(g_ind[i,2])
     poly_grid = grid[g_ind[i,1]:g_ind[i,1]+g_ind[i,2]-1,:]
     poly_y    = y_f[g_ind[i,1]:g_ind[i,1]+g_ind[i,2]-1]
@@ -219,8 +219,8 @@ function smolyak_evaluate_full(weights::Array{Array{T,1},1},point::Array{R,1},mu
 
   evaluated_polynomials = zeros(size(multi_index,1))
 
-  @inbounds for i = 1:size(multi_index,1) # This loops over the number of polynomials
-    @inbounds for l = 1:length(weights[i])
+  @inbounds for i in axes(multi_index,1) # This loops over the number of polynomials
+    @inbounds for l in eachindex(weights[i])
       ll = CartesianIndices(Tuple(m_i(multi_index[i:i,:])))[l]
       temp = weights[i][l]*cheb_poly(ll[1]-1,point[1])
       @inbounds for k = 2:d
@@ -282,8 +282,8 @@ function smolyak_derivative_full(weights::Array{Array{T,1},1},point::Array{R,1},
 
   evaluated_polynomials = zeros(size(multi_index,1))
 
-  for i = 1:size(multi_index,1) # This loops over the number of polynomials
-    for l = 1:length(weights[i])
+  for i in axes(multi_index,1) # This loops over the number of polynomials
+    for l in eachindex(weights[i])
       ll = CartesianIndices(Tuple(m_i(multi_index[i:i,:])))[l]
       if pos == 1
         temp = weights[i][l]*deriv_cheb_poly(ll[1]-1,point[1])

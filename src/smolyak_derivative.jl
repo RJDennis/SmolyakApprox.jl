@@ -7,7 +7,7 @@ function smolyak_derivative(weights::Array{T,1},node::Array{R,1},multi_index::Ar
 
   base_polynomials = Array{Array{R,2},1}(undef,length(unique_orders))
   base_polynomial_derivatives = Array{Array{R,2},1}(undef,length(unique_orders))
-  for i = 1:length(unique_orders)
+  for i in eachindex(unique_orders)
     base_polynomials[i] = chebyshev_polynomial(unique_orders[i],node)
     base_polynomial_derivatives[i] = chebyshev_polynomial_derivative(unique_orders[i],node)
   end
@@ -30,7 +30,7 @@ function smolyak_derivative(weights::Array{T,1},node::Array{R,1},multi_index::Ar
   # Iterate over nodes, doing the above three steps at each iteration
 
   l = 1
-  @inbounds for j = 1:size(multi_index,1)
+  @inbounds for j in axes(multi_index,1)
     if pos == 1
       new_polynomials = unique_base_polynomial_derivatives[multi_index[j,1]][1,:]
     else
@@ -50,7 +50,7 @@ function smolyak_derivative(weights::Array{T,1},node::Array{R,1},multi_index::Ar
 
   evaluated_derivative = zero(T)
 
-  for i = 1:length(polynomials)
+  for i in eachindex(polynomials)
     evaluated_derivative += polynomials[i]*weights[i]
   end
 

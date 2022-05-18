@@ -1,7 +1,7 @@
 function scale_nodes(nodes::Array{R,1},domain::Array{T,1}) where {T<:AbstractFloat,R<:Number}
 
   nodes = copy(nodes)
-  @inbounds for i = 1:length(nodes)
+  @inbounds for i in eachindex(nodes)
     nodes[i] = domain[2] + (1.0+nodes[i])*(domain[1]-domain[2])/2
   end
 
@@ -12,8 +12,8 @@ end
 function scale_nodes(nodes::Array{R,2},domain::Array{T,2}) where {T<:AbstractFloat,R<:Number}
 
   nodes = copy(nodes)
-  @inbounds for i = 1:size(nodes,1)
-    @inbounds for j = 1:size(nodes,2)
+  @inbounds for i in axes(nodes,1)
+    @inbounds for j in axes(nodes,2)
       nodes[i,j] = domain[2,j] + (1.0+nodes[i,j])*(domain[1,j]-domain[2,j])/2
     end
   end

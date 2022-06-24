@@ -3,21 +3,7 @@ module SmolyakApprox
 using LinearAlgebra
 using ThreadPools
 
-include("chebyshev_gauss_lobatto.jl")
-include("clenshaw_curtis_equidistant.jl")
-include("chebyshev_polynomial.jl")
-include("smolyak_weights.jl")
-include("smolyak_evaluate.jl")
-include("smolyak_grid.jl")
-include("generate_multi_index.jl")
-include("combine_nodes.jl")
-include("m_i.jl")
-include("chebyshev_polynomial_derivative.jl")
-include("smolyak_derivative_finite_difference.jl")
-include("smolyak_derivative.jl")
-include("scale_nodes.jl")
-include("smolyak_full_grid.jl")
-include("smolyak_piecewise_linear.jl")
+include("smolyak_approx_functions.jl")
 
 export chebyshev_gauss_lobatto,
        clenshaw_curtis_equidistant,

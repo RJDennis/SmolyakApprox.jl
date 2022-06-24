@@ -48,7 +48,7 @@ function test_smolyak_approx()
 
   # Now consider the ansiotropic case
 
-  mu = (3, 2, 2, 2, 3)
+  mu = [3, 2, 2, 2, 3]
   grid, multi_ind = smolyak_grid(chebyshev_gauss_lobatto,d,mu)  # Construct the Smolyak grid and the multi index
   y = test(grid)
   weights = smolyak_weights(y,grid,multi_ind)                   # Compute the Smolyak weights

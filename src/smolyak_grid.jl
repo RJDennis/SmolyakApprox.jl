@@ -1,6 +1,6 @@
 # These functions relate to both an ansiotropic and an isotropic grid
 
-function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}}) where {S<:Integer}
+function smolyak_grid(node_type::Function,d::S,mu::Union{S,NTuple{N,S}}) where {S<:Integer,N}
 
   T = typeof(1.0)
 
@@ -45,7 +45,7 @@ function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}}) where {S
 
 end
 
-function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}},domain::Union{Array{T,1},Array{T,2}}) where {S<:Integer, T<:AbstractFloat}
+function smolyak_grid(node_type::Function,d::S,mu::Union{S,NTuple{N,S}},domain::Union{Array{T,1},Array{T,2}}) where {S<:Integer,T<:AbstractFloat,N}
 
   if size(domain,2) != d
     error("domain is inconsistent with the number of dimensions")

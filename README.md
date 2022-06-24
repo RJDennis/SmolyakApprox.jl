@@ -24,7 +24,7 @@ The nodes are computed using Chebyshev-Gauss-Lobatto, with the approximation gri
 grid, multi_ind = smolyak_grid(chebyshev_gauss_lobatto,d,mu,domain)
 ```
 
-where `d` is the dimension of the function, `mu` is the layer or approximation order, and domain is a 2d-array (2xd) containing the upper and lower bound on each variable.  If domain is not provided, then it is assumed that the variables reside on the [-1,1] interval.  If `mu` is an integer, then an isotropic grid is computed whereas if `mu` is an array of integers with length `d`, then an anisotropic grid is computed.
+where `d` is the dimension of the function, `mu` is the layer or approximation order, and domain is a 2d-array (2xd) containing the upper and lower bound on each variable.  If domain is not provided, then it is assumed that the variables reside on the [-1,1] interval.  If `mu` is an integer, then an isotropic grid is computed whereas if `mu` is tuple of integers with length `d`, then an anisotropic grid is computed.
 
 With the grid and multi-index in hand, we can compute the weights, or coefficients in the approximation, according to
 
@@ -73,7 +73,7 @@ and the approximation computed via
 y_hat = smolyak_pl_evaluate(weights,point,grid,multi_ind,domain)
 ```
 
-Again `mu` can be either an integer or a 1d array of integers depending on whether an isotropic or an anisotropic approximation is desired, and the argument `domain` is unnecessary where the grid resides on [-1,1]^d.
+Again `mu` can be either an integer or a tuple of integers depending on whether an isotropic or an anisotropic approximation is desired, and the argument `domain` is unnecessary where the grid resides on [-1,1]^d.
 
 Related packages
 ----------------

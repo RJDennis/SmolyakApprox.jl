@@ -1,6 +1,6 @@
 # This function relates to the ansiotropic case
 
-function generate_multi_index(d::S,mu::Array{S,1}) where {S<:Integer}
+function generate_multi_index(d::S,mu::NTuple{N,S}) where {S<:Integer,N}
 
   nt = num_terms(mu,d)
   multi_index = Array{S,2}(undef,nt,d)
@@ -70,7 +70,7 @@ end
 # isotropic case (it also computes the number of terms in a complete
 # polynominal based on the order and the number of dimensions.
 
-function num_terms(order::S,d::S) where {S <: Integer}
+function num_terms(order::S,d::S) where {S<:Integer}
 
   if d == 1
     return order+1
@@ -83,7 +83,7 @@ end
 # The following function is a poor approximation to the number of terms in
 # the multi-index for the ansiotropic case.
 
-function num_terms(order::Array{S,1},d::S) where {S <: Integer}
+function num_terms(order::NTuple{N,S},d::S) where {S<:Integer,N}
 
   max_mu = maximum(order)
   nt = num_terms(max_mu,d) # Deliberate over-estimate of the number of terms

@@ -1,4 +1,4 @@
-function chebyshev_gauss_lobatto(n::S,domain = [1.0,-1.0]) where {S<:Integer}
+function chebyshev_gauss_lobatto(n::S,domain::Array{T,1} = [1.0,-1.0]) where {S<:Integer,T<:AbstractFloat}
 
   # These nodes a just the Chebyshev extrema by a different name.
 

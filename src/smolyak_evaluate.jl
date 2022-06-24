@@ -1,4 +1,4 @@
-function smolyak_polynomial(node::AbstractArray{R,1},multi_index::Array{S,2}) where {R<:Number,S<:Integer}
+function smolyak_polynomial(node::Array{R,1},multi_index::Array{S,2}) where {R<:Number,S<:Integer}
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders = m_i(unique_multi_index).-1
@@ -46,7 +46,7 @@ function smolyak_polynomial(node::AbstractArray{R,1},multi_index::Array{S,2}) wh
 
 end
 
-function smolyak_polynomial(node::AbstractArray{R,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
+function smolyak_polynomial(node::Array{R,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
   node = copy(node)
 
@@ -65,7 +65,7 @@ function smolyak_polynomial(node::AbstractArray{R,1},multi_index::Array{S,2},dom
 
 end
 
-function smolyak_evaluate(weights::Array{T,1},node::AbstractArray{R,1},multi_index::Array{S,2}) where {T<:AbstractFloat,R<:Number,S<:Integer}
+function smolyak_evaluate(weights::Array{T,1},node::Array{R,1},multi_index::Array{S,2}) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders = m_i(unique_multi_index).-1
@@ -117,7 +117,7 @@ function smolyak_evaluate(weights::Array{T,1},node::AbstractArray{R,1},multi_ind
   
 end
   
-function smolyak_evaluate(weights::Array{T,1},node::AbstractArray{R,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
+function smolyak_evaluate(weights::Array{T,1},node::Array{R,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
   
   node = copy(node)
   

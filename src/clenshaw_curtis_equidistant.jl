@@ -1,4 +1,4 @@
-function clenshaw_curtis_equidistant(n::S,domain = [1.0,-1.0]) where {S<:Integer}
+function clenshaw_curtis_equidistant(n::S,domain::Array{T,1} = [1.0,-1.0]) where {S<:Integer,T<:AbstractFloat}
 
   # Construct the nodes on the [-1.0,1.0] interval
 

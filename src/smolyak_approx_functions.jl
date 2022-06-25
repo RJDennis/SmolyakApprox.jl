@@ -1,4 +1,4 @@
-function chebyshev_gauss_lobatto(n::S,domain::Array{T,1} = [1.0,-1.0]) where {S<:Integer,T<:AbstractFloat}
+function chebyshev_gauss_lobatto(n::S,domain = [1.0,-1.0]) where {S<:Integer}
 
   # These nodes a just the Chebyshev extrema by a different name.
 
@@ -42,7 +42,7 @@ function chebyshev_gauss_lobatto(n::S,domain::Array{T,1} = [1.0,-1.0]) where {S<
 
 end
 
-function clenshaw_curtis_equidistant(n::S,domain::Array{T,1} = [1.0,-1.0]) where {S<:Integer,T<:AbstractFloat}
+function clenshaw_curtis_equidistant(n::S,domain = [1.0,-1.0]) where {S<:Integer}
 
   # Construct the nodes on the [-1.0,1.0] interval
 
@@ -218,7 +218,7 @@ end
 # isotropic case (it also computes the number of terms in a complete
 # polynominal based on the order and the number of dimensions.
 
-function num_terms(order::S,d::S) where {S<:Integer}
+function num_terms(order::S,d::S) where {S <: Integer}
 
   if d == 1
     return order+1
@@ -231,7 +231,7 @@ end
 # The following function is a poor approximation to the number of terms in
 # the multi-index for the ansiotropic case.
 
-function num_terms(order::Array{S,1},d::S) where {S<:Integer}
+function num_terms(order::Array{S,1},d::S) where {S <: Integer}
 
   max_mu = maximum(order)
   nt = num_terms(max_mu,d) # Deliberate over-estimate of the number of terms
@@ -240,7 +240,7 @@ function num_terms(order::Array{S,1},d::S) where {S<:Integer}
   
 end
   
-function m_i(multi_index::S) where {S<:Integer}
+function m_i(multi_index::S) where {S <: Integer}
 
   if multi_index == 1
     m_node_number = one(S)
@@ -252,7 +252,7 @@ function m_i(multi_index::S) where {S<:Integer}
 
 end
 
-function m_i(multi_index::Array{S,1}) where {S<:Integer}
+function m_i(multi_index::Array{S,1}) where {S <: Integer}
 
   m_node_number = Array{S,1}(undef,length(multi_index))
 
@@ -264,7 +264,7 @@ function m_i(multi_index::Array{S,1}) where {S<:Integer}
 
 end
 
-function m_i(multi_index::Array{S,2}) where {S<:Integer}
+function m_i(multi_index::Array{S,2}) where {S <: Integer}
 
   m_node_number = Array{S,2}(undef,size(multi_index))
 
@@ -391,7 +391,7 @@ function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}}) where {S
 
 end
 
-function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}},domain::Union{Array{T,1},Array{T,2}}) where {S<:Integer,T<:AbstractFloat}
+function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}},domain::Union{Array{T,1},Array{T,2}}) where {S<:Integer, T<:AbstractFloat}
 
   if size(domain,2) != d
     error("domain is inconsistent with the number of dimensions")
@@ -723,7 +723,7 @@ function smolyak_weights(y::Array{T,1},inverse_interpolation_matrix::Array{T,2})
 
 end
 
-function smolyak_polynomial(node::Array{R,1},multi_index::Array{S,2}) where {R<:Number,S<:Integer}
+function smolyak_polynomial(node::AbstractArray{R,1},multi_index::Array{S,2}) where {R<:Number,S<:Integer}
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders = m_i(unique_multi_index).-1
@@ -771,7 +771,7 @@ function smolyak_polynomial(node::Array{R,1},multi_index::Array{S,2}) where {R<:
 
 end
 
-function smolyak_polynomial(node::Array{R,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
+function smolyak_polynomial(node::AbstractArray{R,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
   node = copy(node)
 
@@ -790,7 +790,7 @@ function smolyak_polynomial(node::Array{R,1},multi_index::Array{S,2},domain::Uni
 
 end
 
-function smolyak_evaluate(weights::Array{T,1},node::Array{R,1},multi_index::Array{S,2}) where {T<:AbstractFloat,R<:Number,S<:Integer}
+function smolyak_evaluate(weights::Array{T,1},node::AbstractArray{R,1},multi_index::Array{S,2}) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders = m_i(unique_multi_index).-1
@@ -842,7 +842,7 @@ function smolyak_evaluate(weights::Array{T,1},node::Array{R,1},multi_index::Arra
   
 end
   
-function smolyak_evaluate(weights::Array{T,1},node::Array{R,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
+function smolyak_evaluate(weights::Array{T,1},node::AbstractArray{R,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
   
   node = copy(node)
   
@@ -1094,7 +1094,7 @@ function smolyak_derivative_finite_difference(weights::Array{T,1},node::Array{R,
 
 end
 
-function smolyak_pl_weights(y::Array{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_pl_weights(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
 
   interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
 
@@ -1137,7 +1137,7 @@ function smolyak_pl_weights(y::Array{T,1},nodes::Union{Array{T,1},Array{T,2}},mu
 
 end
 
-function smolyak_pl_weights(y::Array{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_pl_weights(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
 
   # Normalize nodes to the [-1.0 1.0] interval
 
@@ -1153,7 +1153,7 @@ function smolyak_pl_weights(y::Array{T,1},nodes::Union{Array{T,1},Array{T,2}},mu
 
 end
 
-function smolyak_pl_weights_threaded(y::Array{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_pl_weights_threaded(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
 
   interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
 
@@ -1196,7 +1196,7 @@ function smolyak_pl_weights_threaded(y::Array{T,1},nodes::Union{Array{T,1},Array
 
 end
 
-function smolyak_pl_weights_threaded(y::Array{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_pl_weights_threaded(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
 
   # Normalize nodes to the [-1.0 1.0] interval
 
@@ -1457,7 +1457,7 @@ function compute_scale_factor(multi_index::Array{S,1}) where {S<:Integer}
 
 end
 
-function smolyak_weights_full(y_f::Array{T,1},grid::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2}) where {S<:Integer,T<:AbstractFloat}
+function smolyak_weights_full(y_f::Array{T,1},grid::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2}) where {S<:Integer, T<:AbstractFloat}
 
   mi = sum(multi_index,dims=2)
   d  = size(multi_index,2)
@@ -1497,7 +1497,7 @@ function smolyak_weights_full(y_f::Array{T,1},grid::Union{Array{T,1},Array{T,2}}
 
 end
 
-function smolyak_weights_full(y_f::Array{T,1},grid::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2},domain::Array{T,2}) where {S<:Integer,T<:AbstractFloat}
+function smolyak_weights_full(y_f::Array{T,1},grid::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2},domain::Array{T,2}) where {S<:Integer, T<:AbstractFloat}
 
   d = size(multi_index,2)
   grid = copy(grid)

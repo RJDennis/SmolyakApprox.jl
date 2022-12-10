@@ -7,7 +7,6 @@ import ChebyshevApprox: chebyshev_extrema,
                         chebyshev_polynomial_sec_deriv
 
 using ThreadPools
-using LinearAlgebra
 
 include("smolyak_approx_functions.jl")
 

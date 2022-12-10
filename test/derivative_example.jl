@@ -39,7 +39,6 @@ function test_smolyak_derivative()
 
   y_actual = test(point')
 
-  derivatives_1 = smolyak_derivative_finite_difference(weights,point,multi_ind)
   derivatives_2 = smolyak_gradient(weights,point,multi_ind)
   derivatives_3 = smolyak_derivative(weights,point,multi_ind,1)
   derivatives_4 = smolyak_derivative(weights,point,multi_ind,3)
@@ -51,7 +50,7 @@ function test_smolyak_derivative()
   derivatives_3_full = smolyak_derivative_full(weights_full,point,multi_ind_full,1)         # Evaluate the approximated function
   derivatives_4_full = smolyak_gradient_full(weights_full,point,multi_ind_full) # Evaluate the approximated function
 
-  return derivatives_1, derivatives_2, derivatives_3, derivatives_4, derivatives_3_full, derivatives_4_full
+  return derivatives_2, derivatives_3, derivatives_4, derivatives_3_full, derivatives_4_full
 
 end
 

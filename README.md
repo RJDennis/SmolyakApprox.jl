@@ -1,5 +1,8 @@
 # SmolyakApprox.jl
 
+Introduction
+============
+
 This package implements Smolyak's method for approximating multivariate continuous functions.  Two different types of interpolation schemes are allowed: Chebyshev polynomials and piecewise linear.
 
 To install this package you need to type in the REPL
@@ -24,7 +27,7 @@ The nodes are computed using Chebyshev-Gauss-Lobatto, with the approximation gri
 grid, multi_ind = smolyak_grid(chebyshev_gauss_lobatto,d,mu,domain)
 ```
 
-where `d` is the dimension of the function, `mu` is the layer or approximation order, and domain is a 2d-array (2xd) containing the upper and lower bound on each variable.  If domain is not provided, then it is assumed that the variables reside on the [-1,1] interval.  If `mu` is an integer, then an isotropic grid is computed whereas if `mu` is a 1d array of integers with length `d`, then an anisotropic grid is computed.
+where `d` is the dimension of the function, `mu` is the layer or approximation order, and domain is a 2d-array (2xd) containing the upper and lower bound on each variable.  If domain is not provided, then it is assumed that the variables reside on the [-1,1] interval.  If `mu` is an integer, then an isotropic grid is computed whereas if `mu` is a 1d array of integers with length `d`, then an anisotropic grid is computed.  Because the chebyshev_gauss_lobatto points are the same as the Chebyshev extrema points you can use `chebyshev_extrema` in place of `chebyshev_gauss_lobatto`. 
 
 With the grid and multi-index in hand, we can compute the weights, or coefficients in the approximation, according to
 
@@ -74,6 +77,48 @@ y_hat = smolyak_pl_evaluate(weights,point,grid,multi_ind,domain)
 ```
 
 Again `mu` can be either an integer or a 1d array of integers depending on whether an isotropic or an anisotropic approximation is desired, and the argument `domain` is unnecessary where the grid resides on [-1,1]^d.
+
+Multi-threading
+---------------
+
+There are multi-threaded functions to compute the polynomial weights and the interpolation matrix.  These multi-threaded functions are accessed by adding `_threaded` to the end of the funtion, as per
+
+```julia
+weights = smolyak_weights_threaded(y,inv_interp_mat)
+```
+
+Useful structures
+-----------------
+
+The key structure to be aware of is the SApproxPlan, which contains the key information needed to approximate a function.
+
+```julia
+d = 3
+mu = 3
+domain = [2.0 2.0 2.0; -2.0 -2.0 -2.0]
+grid, mi = smolyak_grid(chebyshev_extrema,d,mu,domain)
+plan = SApproxPlan(:chebyshev_extrema,grid,mi,domain)
+```
+or
+```julia
+plan = smolyak_plan(chebyshev_extrema,d,mu,domain)
+```
+
+Once the approximation plan has been constructed it can be used to create functions to interpolate and to compute gradients and hessians.
+
+```julia
+f = smolyak_interp(y,plan)
+g = smolyak_gradient(y,plan)
+h = smolyak_hessian(y,plan)
+
+point = [1.0, 1.0, 1.0]
+
+f(point)
+g(point)
+h(point)
+```
+
+There are threaded versions of `smolyak_interp`, `smolyak_gradient`, and `smolyak_hessian`.
 
 Related packages
 ----------------

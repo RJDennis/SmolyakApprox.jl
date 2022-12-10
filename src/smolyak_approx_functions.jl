@@ -1251,7 +1251,7 @@ function smolyak_grid_full(node_type::Function,d::S,mu::S) where {S<:Integer}
   base_nodes   = Array{Array{T,1},1}(undef,length(unique_node_number))
   base_weights = Array{Array{T,1},1}(undef,length(unique_node_number))
   @inbounds for i in eachindex(unique_node_number)
-    base_nodes[i], base_weights[i] = node_type(unique_node_number[i])
+    base_nodes[i] = node_type(unique_node_number[i])
   end
 
   # Select the relevant polynomials from the multi index

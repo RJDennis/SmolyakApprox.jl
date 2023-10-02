@@ -3,7 +3,7 @@
 Introduction
 ============
 
-This package implements Smolyak's method for approximating multivariate continuous functions.  Two different types of interpolation schemes are allowed: Chebyshev polynomials and piecewise linear.
+This package implements Smolyak's method for approximating multivariate continuous functions.  Two different types of interpolation schemes are allowed: Chebyshev polynomials and piecewise linear. The package also implements a Clenshaw-Curtis integration scheme.
 
 To install this package you need to type in the REPL
 
@@ -21,7 +21,7 @@ using SmolyakApprox
 Chebyshev polynomials
 ---------------------
 
-The nodes are computed using Chebyshev-Gauss-Lobatto, with the approximation grid and the multi-index computed by
+The nodes are computed using Chebyshev-Gauss-Lobatto (Chebyshev extrema), with the approximation grid and the multi-index computed by
 
 ```julia
 grid, multi_ind = smolyak_grid(chebyshev_gauss_lobatto,d,mu,domain)
@@ -47,13 +47,26 @@ with the weights now computed through
 weights = smolyak_weights(y,inv_interp_mat)
 ```
 
-Lastly, we can evaluate the Smolyak approximation of the function at any point in the domain by
+You can evaluate the Smolyak approximation of the function at any point in the domain by
 
 ```julia
 y_hat = smolyak_evaluate(weights,point,multi_ind,domain)
 ```
 
 where `point` (a 1d-array) is the point in the domain where the approximation is to be evaluated.
+
+Lastly, you can compute derivatives, gradients, hessians, and integrate functions according to:
+
+```julia
+d = smolyak_derivative(weights,point,multi_ind,domain,pos) # Takes the derivative with respect to variable 'pos'
+g = smolyak_gradient(weights,point,multi_ind,domain)
+h = smolyak_hessian(weights,point,multi_ind,domain)
+
+integral = smolyak_integrate(weights,multi_ind,domain)
+integral = smolyak_integrate(weights,multi_ind,domain,pos) # Returns a function of variable 'pos', integrating out all other variables. 
+```
+
+In all cases, but notably for integration, ```domain``` refers to the domain the function is approximated over. I.e., integration is performed over the approximation region, rather than over some sub-domain of the approximation region.
 
 Piecewise linear
 ----------------
@@ -118,7 +131,7 @@ g(point)
 h(point)
 ```
 
-There are threaded versions of `smolyak_interp`, `smolyak_gradient`, and `smolyak_hessian`.
+There are threaded versions of `smolyak_interp`, `smolyak_gradient`, and `smolyak_hessian`; just add `_threaded` to the end of the function name.
 
 Related packages
 ----------------

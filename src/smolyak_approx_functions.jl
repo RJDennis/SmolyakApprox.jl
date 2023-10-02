@@ -1235,6 +1235,155 @@ function smolyak_hessian_threaded(y::AbstractArray{T,1},plan::P) where {T<:Abstr
   
 end
 
+function integrate_cheb_polys(order::S) where {S <: Integer}
+
+  # Integrates Chebyshev polynomials over the domain [-1,1]
+
+  p = zeros(order+1)
+    
+  for i in 1:order+1
+    if i == 2
+      p[i] = 0.0
+    else
+      p[i] = ((-1)^(i-1)+1)/(1-(i-1)^2)
+    end
+  end
+
+  return p
+
+end
+
+function smolyak_integrate(weights::Array{T,1},multi_index::Union{Array{S,1},Array{S,2}},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+
+  # Uses Clenshaw-Curtis to integrate over all dimensions
+
+  unique_multi_index = sort(unique(multi_index))
+  unique_orders = m_i(unique_multi_index).-1
+
+  # Here we construct the base polynomials
+
+  base_polynomial_integrals = Array{Array{T,1},1}(undef,length(unique_orders))
+  for i in eachindex(unique_orders)
+    base_polynomial_integrals[i] = integrate_cheb_polys(unique_orders[i])
+  end
+
+  # Compute the unique polynomial terms from the base polynomials
+
+  unique_base_polynomial_integrals = Array{Array{T,1},1}(undef,length(unique_orders))
+  for i = length(unique_orders):-1:2
+    unique_base_polynomial_integrals[i] = base_polynomial_integrals[i][length(base_polynomial_integrals[i-1])+1:end]
+  end
+  unique_base_polynomial_integrals[1] = base_polynomial_integrals[1]
+
+  # Construct the first row of the interplation matrix
+
+  polynomials = Array{T,1}(undef,length(weights))
+
+  # Iterate over nodes, doing the above three steps at each iteration
+
+  l = 1
+  @inbounds for j in axes(multi_index,1)
+    new_polynomials = unique_base_polynomial_integrals[multi_index[j,1]][:]
+    for i = 2:size(multi_index,2)
+      new_polynomials = kron(new_polynomials,unique_base_polynomial_integrals[multi_index[j,i]][:])
+    end
+    m = length(new_polynomials)
+    polynomials[l:l+m-1] = new_polynomials
+    l += m
+  end
+
+  evaluated_integral = zero(T)
+
+  for i in eachindex(polynomials)
+    evaluated_integral += polynomials[i]*weights[i]
+  end
+
+  scale_factor = (domain[1,1]-domain[2,1])/2
+  for i in 2:size(multi_index,2)
+    scale_factor = scale_factor*(domain[1,i]-domain[2,i])/2
+  end
+
+  return evaluated_integral*scale_factor
+
+end
+
+function smolyak_integrate(weights::Array{T,1},multi_index::Union{Array{S,1},Array{S,2}},domain::Union{Array{T,1},Array{T,2}},pos::S) where {T<:AbstractFloat,S<:Integer}
+
+  # Uses Clenshaw-Curtis to integrate over all dimensions except for pos
+
+  function smolyak_int(point::R) where {R <: Number}
+    
+    point = normalize_node(point,domain[:,pos])
+
+    unique_multi_index = sort(unique(multi_index))
+    unique_orders = m_i(unique_multi_index).-1
+
+    # Here we construct the base polynomials
+
+    base_polynomials          = Array{Array{T,1},1}(undef,length(unique_orders))
+    base_polynomial_integrals = Array{Array{T,1},1}(undef,length(unique_orders))
+    for i in eachindex(unique_orders)
+      base_polynomials[i]          = chebyshev_polynomial(unique_orders[i],point)[:]
+      base_polynomial_integrals[i] = integrate_cheb_polys(unique_orders[i])
+    end
+
+    # Compute the unique polynomial terms from the base polynomials
+
+    unique_base_polynomials          = Array{Array{T,1},1}(undef,length(unique_orders))
+    unique_base_polynomial_integrals = Array{Array{T,1},1}(undef,length(unique_orders))
+    for i = length(unique_orders):-1:2
+      unique_base_polynomials[i]          = base_polynomials[i][length(base_polynomials[i-1])+1:end]
+      unique_base_polynomial_integrals[i] = base_polynomial_integrals[i][length(base_polynomial_integrals[i-1])+1:end]
+    end
+    unique_base_polynomials[1]          = base_polynomials[1]
+    unique_base_polynomial_integrals[1] = base_polynomial_integrals[1]
+
+    # Construct the first row of the interplation matrix
+
+    polynomials = Array{T,1}(undef,length(weights))
+
+    # Iterate over nodes, doing the above three steps at each iteration
+
+    l = 1
+    @inbounds for j in axes(multi_index,1)
+      if pos == 1
+        new_polynomials = unique_base_polynomials[multi_index[j,1]][:]
+      else
+        new_polynomials = unique_base_polynomial_integrals[multi_index[j,1]][:]
+      end
+      for i = 2:size(multi_index,2)
+        if pos == i
+          new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][:])
+        else
+          new_polynomials = kron(new_polynomials,unique_base_polynomial_integrals[multi_index[j,i]][:])
+        end
+      end
+      m = length(new_polynomials)
+      polynomials[l:l+m-1] = new_polynomials
+      l += m
+    end
+
+    evaluated_integral = zero(T)
+
+    for i in eachindex(polynomials)
+      evaluated_integral += polynomials[i]*weights[i]
+    end
+
+    scale_factor = 1.0
+    for i in 1:size(multi_index,2)
+      if pos != i
+        scale_factor = scale_factor*(domain[1,i]-domain[2,i])/2
+      end
+    end
+
+    return evaluated_integral*scale_factor
+
+  end
+
+  return smolyak_int
+
+end
+
 ########################################################################
 ########################################################################
 

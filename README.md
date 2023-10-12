@@ -3,7 +3,7 @@
 Introduction
 ============
 
-This package implements Smolyak's method for approximating multivariate continuous functions.  Two different types of interpolation schemes are allowed: Chebyshev polynomials and piecewise linear. The package also implements a Clenshaw-Curtis integration scheme.
+This package implements Smolyak's method for approximating multivariate continuous functions.  Two different types of interpolation schemes are allowed: Chebyshev polynomials and piecewise linear. The package also implements Clenshaw-Curtis integration and Gauss-Chebyshev quadrature.
 
 To install this package you need to type in the REPL
 
@@ -55,18 +55,26 @@ y_hat = smolyak_evaluate(weights,point,multi_ind,domain)
 
 where `point` (a 1d-array) is the point in the domain where the approximation is to be evaluated.
 
-Lastly, you can compute derivatives, gradients, hessians, and integrate functions according to:
+Lastly, you can compute derivatives, gradients, and hessians according to:
 
 ```julia
 d = smolyak_derivative(weights,point,multi_ind,domain,pos) # Takes the derivative with respect to variable 'pos'
 g = smolyak_gradient(weights,point,multi_ind,domain)
 h = smolyak_hessian(weights,point,multi_ind,domain)
-
-integral = smolyak_integrate(weights,multi_ind,domain)
-integral = smolyak_integrate(weights,multi_ind,domain,pos) # Returns a function of variable 'pos', integrating out all other variables. 
 ```
 
-In all cases, but notably for integration, ```domain``` refers to the domain the function is approximated over. I.e., integration is performed over the approximation region, rather than over some sub-domain of the approximation region.
+Integration
+-----------
+
+To numerically integrate a function, you first create an approximation plan and then call the integration function:
+
+```julia
+plan = create_smolyak_plan(:chebyshev_gauss_lobatto,d,mu,domain)
+
+integral = smolyak_integrate(f,plan,:clenshaw_curtis)      # uses Clenshaw-Curtis
+integral = smolyak_integrate(f,plan,:gauss_chebyshev_quad) # uses Gauss-Chebyshev quadrature
+```
+where `f` is the function to be integrated and `plan` is the approximation plan, discussed below.  Both methods integrate the function of the full approximation domain.
 
 Piecewise linear
 ----------------

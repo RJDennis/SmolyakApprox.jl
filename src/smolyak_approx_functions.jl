@@ -230,7 +230,6 @@ function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}}) where {S
   # Create base nodes to be used in the sparse grid
 
   base_nodes   = Array{Array{T,1},1}(undef,length(unique_node_number))
-  base_weights = Array{Array{T,1},1}(undef,length(unique_node_number))
   for i in eachindex(unique_node_number)
     base_nodes[i] = node_type(unique_node_number[i])
   end
@@ -936,7 +935,7 @@ function smolyak_interp(y::Array{T,1},plan::P) where {T<:AbstractFloat,P<:SAppro
 
   if plan.node_type == :chebyshev_extrema || plan.node_type == :chebyshev_gauss_lobatto
     weights = smolyak_weights(y,plan.grid,plan.multi_index,plan.domain)
-  elseif plan.node_type ==:clenshaw_curtis_equidistant
+  elseif plan.node_type == :clenshaw_curtis_equidistant
     weights = smolyak_pl_weights(y,plan.grid,plan.multi_index,plan.domain)
   end
 
@@ -1253,7 +1252,32 @@ function integrate_cheb_polys(order::S) where {S <: Integer}
 
 end
 
-function smolyak_integrate(weights::Array{T,1},multi_index::Union{Array{S,1},Array{S,2}},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_integrate(f::Function,plan::SApproxPlan,method::Symbol)
+
+    if method == :clenshaw_curtis
+        integral = smolyak_clenshaw_curtis(f,plan)
+    elseif method == :gauss_chebyshev_quad
+        integral = smolyak_gauss_chebyshev_quad(f,plan)
+    else
+        error("Integration not implemented for that method")
+    end
+
+    return integral
+
+end
+
+function smolyak_clenshaw_curtis(f::Function,plan::SApproxPlan)
+
+  grid        = plan.grid
+  multi_index = plan.multi_index
+  domain      = plan.domain
+
+  y = zeros(size(grid,1))
+  for i in eachindex(y)
+    y[i] = f(grid[i,:])
+  end
+
+  weights = smolyak_weights(y,grid,multi_index,domain)
 
   # Uses Clenshaw-Curtis to integrate over all dimensions
 
@@ -1261,6 +1285,8 @@ function smolyak_integrate(weights::Array{T,1},multi_index::Union{Array{S,1},Arr
   unique_orders = m_i(unique_multi_index).-1
 
   # Here we construct the base polynomials
+
+  T = eltype(grid)
 
   base_polynomial_integrals = Array{Array{T,1},1}(undef,length(unique_orders))
   for i in eachindex(unique_orders)
@@ -1307,9 +1333,20 @@ function smolyak_integrate(weights::Array{T,1},multi_index::Union{Array{S,1},Arr
 
 end
 
-function smolyak_integrate(weights::Array{T,1},multi_index::Union{Array{S,1},Array{S,2}},domain::Union{Array{T,1},Array{T,2}},pos::S) where {T<:AbstractFloat,S<:Integer}
+function smolyak_clenshaw_curtis(f::Function,plan::SApproxPlan,pos::S) where {S<:Integer}
 
   # Uses Clenshaw-Curtis to integrate over all dimensions except for pos
+
+  grid        = plan.grid
+  multi_index = plan.multi_index
+  domain      = plan.domain
+
+  y = zeros(size(grid,1))
+  for i in eachindex(y)
+    y[i] = f(grid[i,:])
+  end
+
+  weights = smolyak_weights(y,grid,multi_index,domain)
 
   function smolyak_int(point::R) where {R <: Number}
     
@@ -1319,6 +1356,8 @@ function smolyak_integrate(weights::Array{T,1},multi_index::Union{Array{S,1},Arr
     unique_orders = m_i(unique_multi_index).-1
 
     # Here we construct the base polynomials
+
+    T = eltype(grid)
 
     base_polynomials          = Array{Array{T,1},1}(undef,length(unique_orders))
     base_polynomial_integrals = Array{Array{T,1},1}(undef,length(unique_orders))
@@ -1381,6 +1420,40 @@ function smolyak_integrate(weights::Array{T,1},multi_index::Union{Array{S,1},Arr
   end
 
   return smolyak_int
+
+end
+
+function smolyak_gauss_chebyshev_quad(f::Function,plan::SApproxPlan)
+
+  # Uses Gauss-Chebyshev quadrature to integrate over all dimensions
+  
+  grid        = plan.grid
+  multi_index = plan.multi_index
+  domain      = plan.domain
+
+  iim = smolyak_inverse_interpolation_matrix(grid,multi_index,domain) 
+
+  d = size(grid,2)
+
+  e = zeros(1,size(grid,1))
+  e[1] = π^d
+  w = e*iim
+
+  y = zeros(size(grid,1))
+  for i in eachindex(y)
+    integrating_weights = sqrt(1.0-normalize_node(grid[i,1],domain[:,1])^2)
+    for j = 2:d
+      integrating_weights *= sqrt(1.0-normalize_node(grid[i,j],domain[:,j])^2)
+    end
+    y[i] = f(grid[i,:])*integrating_weights
+  end
+
+  scale_factor = (domain[1,1]-domain[2,1])/2
+  for i in 2:d
+    scale_factor = scale_factor*(domain[1,i]-domain[2,i])/2
+  end
+
+  return (w*y)[1]*scale_factor
 
 end
 

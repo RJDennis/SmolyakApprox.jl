@@ -69,12 +69,12 @@ Integration
 To numerically integrate a function, you first create an approximation plan and then call the integration function:
 
 ```julia
-plan = create_smolyak_plan(:chebyshev_gauss_lobatto,d,mu,domain)
+plan = smolyak_plan(chebyshev_gauss_lobatto,d,mu,domain)
 
 integral = smolyak_integrate(f,plan,:clenshaw_curtis)      # uses Clenshaw-Curtis
 integral = smolyak_integrate(f,plan,:gauss_chebyshev_quad) # uses Gauss-Chebyshev quadrature
 ```
-where `f` is the function to be integrated and `plan` is the approximation plan, discussed below.  Both methods integrate the function of the full approximation domain.
+where `f` is the function to be integrated and `plan` is the approximation plan, discussed below.  Both methods integrate the function over the full approximation domain.
 
 Piecewise linear
 ----------------

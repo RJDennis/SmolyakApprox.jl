@@ -89,10 +89,7 @@ function generate_multi_index(d::S,mu::S) where {S<:Integer}
   end
 
   if d == 1
-    multi_index = zeros(S,mu+1)
-    for i = 1:mu+1
-      multi_index[i] = i
-    end
+    multi_index = [i for i in 1:mu+1]
     return multi_index
   else
     multi_index_base = generate_multi_index(d-1,mu)
@@ -138,41 +135,7 @@ function num_terms(order::Array{S,1},d::S) where {S<:Integer}
   
 end
   
-function m_i(multi_index::S) where {S<:Integer}
-
-  if multi_index == 1
-    m_node_number = one(S)
-  else
-    m_node_number = 2^(multi_index-1)+1
-   end
-
-  return m_node_number
-
-end
-
-function m_i(multi_index::Array{S,1}) where {S<:Integer} # This is faster than using map, pmap, or broadcasting
-
-  m_node_number = Array{S,1}(undef,length(multi_index))
-
-  @inbounds for i in eachindex(multi_index)
-    m_node_number[i] = m_i(multi_index[i])
-  end
-
-  return m_node_number
-
-end
-
-function m_i(multi_index::Array{S,2}) where {S<:Integer} # This is faster than using map, pmap, or broadcasting
-
-  m_node_number = Array{S,2}(undef,size(multi_index))
-
-  @inbounds for i in eachindex(multi_index)
-    m_node_number[i] = m_i(multi_index[i])
-  end
-
-  return m_node_number
-
-end
+m_i(x::Integer) = (x == 1 ? 1 : 2^(x-1) + 1)
 
 function combine_nodes(nodes1::Union{Array{R,1},Array{R,2}},nodes2::Array{R,1}) where {R<:Number}  # nodes1 can be a 1d or 2d array; nodes2 is a 1d array
 
@@ -225,7 +188,7 @@ function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}}) where {S
 
   multi_index        = generate_multi_index(d,mu)
   unique_multi_index = sort(unique(multi_index))
-  unique_node_number = m_i(unique_multi_index)
+  unique_node_number = m_i.(unique_multi_index)
 
   # Create base nodes to be used in the sparse grid
 
@@ -330,7 +293,7 @@ function smolyak_weights(y::Array{T,1},nodes::Union{Array{T,1},Array{T,2}},multi
   interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
 
   unique_multi_index = sort(unique(multi_index))
-  unique_orders      = m_i(unique_multi_index).-1
+  unique_orders      = m_i.(unique_multi_index) .- 1
 
   # Below we do the following things:
 
@@ -399,7 +362,7 @@ function smolyak_weights_threaded(y::Array{T,1},nodes::Union{Array{T,1},Array{T,
   interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
 
   unique_multi_index = sort(unique(multi_index))
-  unique_orders      = m_i(unique_multi_index).-1
+  unique_orders      = m_i.(unique_multi_index) .- 1
 
   # Below we do the following things:
 
@@ -408,7 +371,7 @@ function smolyak_weights_threaded(y::Array{T,1},nodes::Union{Array{T,1},Array{T,
   #   Combine the polynomial terms to construct a row of the interpolation matrix
   #   Iterate over the nodes, doing the above for steps at each iteration, to compute all rows of the interpolation matrix
 
-  @inbounds @sync @qthreads for k in axes(nodes,1)
+  @inbounds @sync Threads.@threads for k in axes(nodes,1)
 
     base_polynomials        = Array{Array{T,2},1}(undef,length(unique_orders))
     unique_base_polynomials = Array{Array{T,2},1}(undef,length(unique_orders))
@@ -476,7 +439,7 @@ function smolyak_inverse_interpolation_matrix(nodes::Union{Array{T,1},Array{T,2}
   interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
 
   unique_multi_index = sort(unique(multi_index))
-  unique_orders      = m_i(unique_multi_index).-1
+  unique_orders      = m_i.(unique_multi_index) .- 1
 
   # Below we do the following things:
 
@@ -545,7 +508,7 @@ function smolyak_inverse_interpolation_matrix_threaded(nodes::Union{Array{T,1},A
   interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
 
   unique_multi_index = sort(unique(multi_index))
-  unique_orders      = m_i(unique_multi_index).-1
+  unique_orders      = m_i.(unique_multi_index) .- 1
 
   # Below we do the following things:
 
@@ -554,7 +517,7 @@ function smolyak_inverse_interpolation_matrix_threaded(nodes::Union{Array{T,1},A
   #   Combine the polynomial terms to construct a row of the interpolation matrix
   #   Iterate over the nodes, doing the above for steps at each iteration, to compute all rows of the interpolation matrix
 
-  @inbounds @sync @qthreads for k in axes(nodes,1)
+  @inbounds @sync Threads.@threads for k in axes(nodes,1)
 
     base_polynomials        = Array{Array{T,2},1}(undef,length(unique_orders))
     unique_base_polynomials = Array{Array{T,2},1}(undef,length(unique_orders))
@@ -617,7 +580,7 @@ function smolyak_pl_weights(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{
     k = 1
     x = nodes[l,:]
     @inbounds for i in axes(multi_index,1)
-      m_node_number = m_i(multi_index[i,:])
+      m_node_number = m_i.(multi_index[i,:])
       if prod(m_node_number) == 1
         interpolation_matrix[l,k] = 1.0
         k += 1
@@ -625,7 +588,7 @@ function smolyak_pl_weights(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{
         extra_nodes = 1
         @inbounds for j in eachindex(m_node_number)
           if m_node_number[j] > 1
-            extra_nodes *= m_node_number[j] - m_i(multi_index[i,j]-1)
+            extra_nodes *= m_node_number[j] - m_i(multi_index[i,j] - 1)
           end
         end
         for h = 1:extra_nodes
@@ -672,11 +635,11 @@ function smolyak_pl_weights_threaded(y::AbstractArray{T,1},nodes::Union{Array{T,
 
   interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
 
-  @inbounds @sync @qthreads for l in axes(nodes,1)
+  @inbounds @sync Threads.@threads for l in axes(nodes,1)
     k = 1
     x = nodes[l,:]
     @inbounds for i in axes(multi_index,1)
-      m_node_number = m_i(multi_index[i,:])
+      m_node_number = m_i.(multi_index[i,:])
       if prod(m_node_number) == 1
         interpolation_matrix[l,k] = 1.0
         k += 1
@@ -684,7 +647,7 @@ function smolyak_pl_weights_threaded(y::AbstractArray{T,1},nodes::Union{Array{T,
         extra_nodes = 1
         @inbounds for j in eachindex(m_node_number)
           if m_node_number[j] > 1
-            extra_nodes *= m_node_number[j] - m_i(multi_index[i,j]-1)
+            extra_nodes *= m_node_number[j] - m_i(multi_index[i,j] - 1)
           end
         end
         for h = 1:extra_nodes
@@ -730,7 +693,7 @@ end
 function smolyak_polynomial(node::AbstractArray{R,1},multi_index::Union{Array{S,1},Array{S,2}}) where {R<:Number,S<:Integer}
 
   unique_multi_index = sort(unique(multi_index))
-  unique_orders = m_i(unique_multi_index).-1
+  unique_orders = m_i.(unique_multi_index) .- 1
 
   # Below we do the following things:
 
@@ -797,7 +760,7 @@ end
 function smolyak_evaluate(weights::Array{T,1},node::AbstractArray{R,1},multi_index::Union{Array{S,1},Array{S,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
   unique_multi_index = sort(unique(multi_index))
-  unique_orders = m_i(unique_multi_index).-1
+  unique_orders = m_i.(unique_multi_index) .- 1
   
   # Below we do the following things:
   
@@ -878,7 +841,7 @@ function smolyak_pl_evaluate(weights::Array{T,1},point::Array{R,1},nodes::Union{
   basis = Array{R,1}(undef,size(nodes,1))
   k = 1
   @inbounds for i in axes(multi_index,1)
-    m_node_number = m_i(multi_index[i,:])
+    m_node_number = m_i.(multi_index[i,:])
     if prod(m_node_number) == 1
       basis[k] = one(R)
       k += 1
@@ -886,7 +849,7 @@ function smolyak_pl_evaluate(weights::Array{T,1},point::Array{R,1},nodes::Union{
       extra_nodes = 1
       @inbounds for j in eachindex(m_node_number)
         if m_node_number[j] > 1
-          extra_nodes *= m_node_number[j] - m_i(multi_index[i,j]-1)
+          extra_nodes *= m_node_number[j] - m_i(multi_index[i,j] - 1)
         end
       end
       @inbounds for h = 1:extra_nodes
@@ -978,7 +941,7 @@ end
 function smolyak_derivative(weights::Array{T,1},node::Array{R,1},multi_index::Union{Array{S,1},Array{S,2}},pos::S) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
   unique_multi_index = sort(unique(multi_index))
-  unique_orders = m_i(unique_multi_index).-1
+  unique_orders = m_i.(unique_multi_index) .- 1
 
   # Here we construct the base polynomials
 
@@ -1130,12 +1093,12 @@ function smolyak_hessian(weights::Array{T,1},point::Array{R,1},multi_index::Unio
   end
 
   unique_multi_index = sort(unique(multi_index))
-  unique_orders = m_i(unique_multi_index).-1
+  unique_orders = m_i.(unique_multi_index) .- 1
 
   hess = Array{T,2}(undef,d,d)
 
   unique_multi_index = sort(unique(multi_index))
-  unique_orders = m_i(unique_multi_index).-1
+  unique_orders = m_i.(unique_multi_index) .- 1
 
   # Here we construct the base polynomials
 
@@ -1282,7 +1245,7 @@ function smolyak_clenshaw_curtis(f::Function,plan::SApproxPlan)
   # Uses Clenshaw-Curtis to integrate over all dimensions
 
   unique_multi_index = sort(unique(multi_index))
-  unique_orders = m_i(unique_multi_index).-1
+  unique_orders = m_i.(unique_multi_index) .- 1
 
   # Here we construct the base polynomials
 
@@ -1353,7 +1316,7 @@ function smolyak_clenshaw_curtis(f::Function,plan::SApproxPlan,pos::S) where {S<
     point = normalize_node(point,domain[:,pos])
 
     unique_multi_index = sort(unique(multi_index))
-    unique_orders = m_i(unique_multi_index).-1
+    unique_orders = m_i.(unique_multi_index) .- 1
 
     # Here we construct the base polynomials
 
@@ -1466,7 +1429,7 @@ function smolyak_grid_full(node_type::Function,d::S,mu::S) where {S<:Integer}
 
   multi_index        = generate_multi_index(d,mu)
   unique_multi_index = sort(unique(multi_index))
-  unique_node_number = m_i(unique_multi_index)
+  unique_node_number = m_i.(unique_multi_index)
 
   # Create base nodes to be used in the sparse grid
 
@@ -1613,7 +1576,7 @@ function compute_scale_factor(multi_index::Array{S,1}) where {S<:Integer}
 
   @inbounds for i in eachindex(multi_index)
     if multi_index[i] > 1
-      scale_factor *= 2.0/(m_i(multi_index[i])-1)
+      scale_factor *= 2.0/(m_i(multi_index[i]) - 1)
     end
   end
 
@@ -1643,7 +1606,7 @@ function smolyak_weights_full(y_f::Array{T,1},grid::Union{Array{T,1},Array{T,2}}
       cjs_prod = prod_cjs(max_grid,min_grid,poly_grid)
     end
     @inbounds for l = 1:g_ind[i,2] # This loops over the weights
-      ll = CartesianIndices(Tuple(m_i(multi_index[i,:])))[l]
+      ll = CartesianIndices(Tuple(m_i.(multi_index[i,:])))[l]
       @inbounds for j = 1:g_ind[i,2] # This loops over the nodes
         rhs_term = cheb_poly(ll[1]-1,poly_grid[j,1])*poly_y[j]
         @inbounds for k = 2:size(poly_grid,2) # This loops over the polynomial terms in the product
@@ -1683,7 +1646,7 @@ function smolyak_evaluate_full(weights::Array{Array{T,1},1},point::Array{R,1},mu
 
   @inbounds for i in axes(multi_index,1) # This loops over the number of polynomials
     @inbounds for l in eachindex(weights[i])
-      ll = CartesianIndices(Tuple(m_i(multi_index[i:i,:])))[l]
+      ll = CartesianIndices(Tuple(m_i.(multi_index[i:i,:])))[l]
       temp = weights[i][l]*cheb_poly(ll[1]-1,point[1])
       @inbounds for k = 2:d
         temp *= cheb_poly(ll[k]-1,point[k])
@@ -1746,7 +1709,7 @@ function smolyak_derivative_full(weights::Array{Array{T,1},1},point::Array{R,1},
 
   for i in axes(multi_index,1) # This loops over the number of polynomials
     for l in eachindex(weights[i])
-      ll = CartesianIndices(Tuple(m_i(multi_index[i:i,:])))[l]
+      ll = CartesianIndices(Tuple(m_i.(multi_index[i:i,:])))[l]
       if pos == 1
         temp = weights[i][l]*deriv_cheb_poly(ll[1]-1,point[1])
       else

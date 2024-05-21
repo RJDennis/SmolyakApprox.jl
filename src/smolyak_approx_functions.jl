@@ -134,8 +134,9 @@ function num_terms(order::Array{S,1},d::S) where {S<:Integer}
   return nt
   
 end
-  
+
 m_i(x::Integer) = (x == 1 ? 1 : 2^(x-1) + 1)
+m_i(x::Array{Integer,1}) = m_i.(x)
 
 function combine_nodes(nodes1::Union{Array{R,1},Array{R,2}},nodes2::Array{R,1}) where {R<:Number}  # nodes1 can be a 1d or 2d array; nodes2 is a 1d array
 

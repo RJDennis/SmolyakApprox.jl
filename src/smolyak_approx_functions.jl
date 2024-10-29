@@ -28,30 +28,21 @@ function clenshaw_curtis_equidistant(n::S,domain = [1.0,-1.0]) where {S<:Integer
 
   # Construct the nodes on the [-1.0,1.0] interval
 
-  if n <= 0
-    error("The number of nodes must be positive.")
-  end
-
   if n == 1
     nodes   = [0.0]
   else
     nodes    = zeros(n)
     nodes[1] = -1.0
     nodes[n] = 1.0
-
     for i = 2:div(n,2)
       nodes[i]       = 2*(i-1)/(n-1)-1.0
       nodes[end-i+1] = -2*(i-1)/(n-1)+1.0
-    end
-
-    if isodd(n)
-      nodes[div(n+1,2)] = 0.0
     end
   end
 
   # Scale the nodes to the desired domain
 
-  nodes = scale_nodes(nodes,domain)
+  scale_nodes!(nodes,domain)
 
   return nodes
 
@@ -62,21 +53,21 @@ end
 function generate_multi_index(d::S,mu::Array{S,1}) where {S<:Integer}
 
   nt = num_terms(mu,d)
-  multi_index = Array{S,2}(undef,nt,d)
-  multi_index[1,:] = ones(S,1,d)
+  multi_index = Array{S,2}(undef,nt,d) # allocates
+  multi_index[1,:] = ones(S,1,d) # allocates
 
   max_mu = maximum(mu)
 
-  w = Tuple(repeat([max_mu+1],inner = d))
-  pos = 0
+  w = Tuple(max_mu+1 for _ in 1:d) # allocates
+  candidate_indexes = Tuple.(CartesianIndices(w)) # allocates
+  pos = 1
   @inbounds for i = 2:(max_mu+1)^d
-    candidate_index = Tuple(CartesianIndices(w)[i])
-    if sum(candidate_index) <= d+max_mu && sum(candidate_index .<= mu.+1) == d
-        pos += 1
+    if sum(candidate_indexes[i]) <= d+max_mu && sum(candidate_indexes[i] .<= mu .+ 1) == d
+      pos += 1
       if pos > nt # handles the case where nt is under-estimated
-        multi_index = [multi_index; collect(candidate_index)']
+        multi_index = [multi_index; collect(candidate_indexes[i])'] # allocates
       else
-        multi_index[pos,:] .= candidate_index
+       multi_index[pos,:] .= candidate_indexes[i] # allocates
       end
     end
   end
@@ -92,14 +83,6 @@ end
 # The function below relates to the isotropic case
 
 function generate_multi_index(d::S,mu::S) where {S<:Integer}
-
-  if d < 1
-    error("d must be positive")
-  end
-
-  if mu < 0
-    error("mu must be non-negative")
-  end
 
   if d == 1
     multi_index = [i for i in 1:mu+1]
@@ -183,6 +166,14 @@ function scale_nodes(nodes::Array{R,1},domain::Array{T,1}) where {T<:AbstractFlo
 
 end
 
+function scale_nodes!(nodes::Array{R,1},domain::Array{T,1}) where {T<:AbstractFloat,R<:Number}
+
+  @inbounds for i in eachindex(nodes)
+    nodes[i] = domain[2] + (1.0+nodes[i])*(domain[1]-domain[2])*0.5
+  end
+
+end
+
 function scale_nodes(nodes::Array{R,2},domain::Array{T,2}) where {T<:AbstractFloat,R<:Number}
 
   nodes = copy(nodes)
@@ -192,6 +183,14 @@ function scale_nodes(nodes::Array{R,2},domain::Array{T,2}) where {T<:AbstractFlo
 
   return nodes
 
+end
+
+function scale_nodes!(nodes::Array{R,2},domain::Array{T,2}) where {T<:AbstractFloat,R<:Number}
+
+  @inbounds for i in CartesianIndices(nodes)
+    nodes[i] = domain[2,i[2]] + (1.0+nodes[i])*(domain[1,i[2]]-domain[2,i[2]])*0.5
+  end
+   
 end
 
 # These functions relate to both an ansiotropic and an isotropic grid
@@ -235,9 +234,6 @@ function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}}) where {S
     nodes[l:l+m-1,:] = new_nodes
     l += m
   end
-
-  # Eventually this function should also return the weights at each node on the grid
-  # so that it can be used for numerical integration.
 
   if d == 1
     nodes = nodes[:]
@@ -323,7 +319,7 @@ function smolyak_weights(y::Array{T,1},nodes::Union{Array{T,1},Array{T,2}},multi
   #   Generate the polynomial terms for each order
   #   Generate the unique polynomial terms introduced at each higher order
   #   Combine the polynomial terms to construct a row of the interpolation matrix
-  #   Iterate over the nodes, doing the above for steps at each iteration, to compute all rows of the interpolation matrix
+  #   Iterate over the nodes, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
 
   base_polynomials        = Array{Array{T,2},1}(undef,length(unique_orders))
   unique_base_polynomials = Array{Array{T,2},1}(undef,length(unique_orders))
@@ -398,7 +394,7 @@ function smolyak_weights_threaded(y::Array{T,1},nodes::Union{Array{T,1},Array{T,
   #   Generate the polynomial terms for each order
   #   Generate the unique polynomial terms introduced at each higher order
   #   Combine the polynomial terms to construct a row of the interpolation matrix
-  #   Iterate over the nodes, doing the above for steps at each iteration, to compute all rows of the interpolation matrix
+  #   Iterate over the nodes, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
 
   @inbounds @sync Threads.@threads for k in axes(nodes,1)
 
@@ -481,7 +477,7 @@ function smolyak_inverse_interpolation_matrix(nodes::Union{Array{T,1},Array{T,2}
   #   Generate the polynomial terms for each order
   #   Generate the unique polynomial terms introduced at each higher order
   #   Combine the polynomial terms to construct a row of the interpolation matrix
-  #   Iterate over the nodes, doing the above for steps at each iteration, to compute all rows of the interpolation matrix
+  #   Iterate over the nodes, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
 
   base_polynomials        = Array{Array{T,2},1}(undef,length(unique_orders))
   unique_base_polynomials = Array{Array{T,2},1}(undef,length(unique_orders))
@@ -556,7 +552,7 @@ function smolyak_inverse_interpolation_matrix_threaded(nodes::Union{Array{T,1},A
   #   Generate the polynomial terms for each order
   #   Generate the unique polynomial terms introduced at each higher order
   #   Combine the polynomial terms to construct a row of the interpolation matrix
-  #   Iterate over the nodes, doing the above for steps at each iteration, to compute all rows of the interpolation matrix
+  #   Iterate over the nodes, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
 
   @inbounds @sync Threads.@threads for k in axes(nodes,1)
 

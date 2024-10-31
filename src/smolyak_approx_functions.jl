@@ -1402,7 +1402,7 @@ function smolyak_gradient(weights::Array{T,1},point::Array{R,1},multi_index::Uni
   gradient = Array{R,2}(undef,1,d)
 
   for i = 1:d
-    gradient[i] = smolyak_derivative(weights,node,multi_index,domain,i)
+    gradient[i] = smolyak_derivative(weights,point,multi_index,domain,i)
   end
 
   return gradient

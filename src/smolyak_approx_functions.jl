@@ -6,6 +6,11 @@ import ChebyshevApprox: chebyshev_extrema,
 
 abstract type SApproximationPlan end
 
+"""
+SApproxPlan is an immutable struct that contains the information used to approximate a multi-dimensional function.
+SApproxPlan has four fileds: A node type that describes how the approximating points are generated, the approximation
+grid, the multi-index associated with the Smolyak polynomial, and the approximation domain.
+""" 
 struct SApproxPlan{S<:Integer,T<:AbstractFloat} <: SApproximationPlan
 
   node_type::Symbol
@@ -15,28 +20,79 @@ struct SApproxPlan{S<:Integer,T<:AbstractFloat} <: SApproximationPlan
 
 end
 
+"""
+Computes ```N``` Chebyshev-Gauss-Lobatto (Chebyshev extrema) and scales the points to the interval given in
+```domain``` (defaults to [1.0,-1.0]).  Returns a vector containing the ```N``` points located over the 
+specified domain.
+
+Chebyshev-Gauss-Lobatto points are used in the case where the Smolyak approximation is based on Chebyshev
+polynomials.
+
+Signatures
+==========
+
+points = chebyshev_gauss_lobatto(N,domain)
+points = chebyshev_extrema(N,domain)
+
+Examples
+========
+```
+julia> points = chebyshev_gauss_lobatto(4)
+[-1.0
+ -0.5000000000000001
+  0.5000000000000001
+  1.0]
+
+julia> points = chebyshev_gauss_lobatto(4,[3.0,-1.0])
+[-1.0
+ -2.220446049250313e-16
+  2.0
+  3.0]
+```
+"""
 const chebyshev_gauss_lobatto = chebyshev_extrema
 
 """
-Compute 'N' equidistant nodes on the interval given in 'domain'.
+Computes ```N``` uniformly spaced points on [1.0,-1.0] and scales the points to the interval given in ```domain```
+(defaults to [1.0,-1.0]).  Returns a vector containing the ```N``` points located over the specified domain.
 
-N --- an integer specifying the number nodes.
+clenshaw-Curtis equidistant points are used in the case where the Smolyak approximation is based on piecewise
+linear basis functions.
 
-domain --- (with with default [1.0,-1.0]) is a 2-element vector specifying the upper and lower bounds on the domain.
+Signature
+=========
+
+points = clenshaw_curtis_equidistant(N,domain)
+
+Examples
+========
+```
+julia> points = clenshaw_curtis_equidistant(4)
+[-1.0
+ -0.33333333333333337
+  0.3333333333333335
+  1.0]
+
+julia> points = clenshaw_curtis_equidistant(4,[3.0,-1.0])
+[-1.0
+  0.33333333333333326
+  1.666666666666667
+  3.0]
+```
 """
 function clenshaw_curtis_equidistant(n::S,domain = [1.0,-1.0]) where {S<:Integer}
 
   # Construct the nodes on the [-1.0,1.0] interval
 
   if n == 1
-    nodes   = [0.0]
+    nodes   = [0.0] # allocates
   else
-    nodes    = zeros(n)
+    nodes    = zeros(n) # allocates
     nodes[1] = -1.0
-    nodes[n] = 1.0
+    nodes[n] =  1.0
     for i = 2:div(n,2)
-      nodes[i]       = 2*(i-1)/(n-1)-1.0
-      nodes[end-i+1] = -2*(i-1)/(n-1)+1.0
+      nodes[i]       =  2*(i-1)/(n-1) - 1.0
+      nodes[end-i+1] = -2*(i-1)/(n-1) + 1.0
     end
   end
 
@@ -48,8 +104,82 @@ function clenshaw_curtis_equidistant(n::S,domain = [1.0,-1.0]) where {S<:Integer
 
 end
 
-# This function relates to the ansiotropic case
+"""
+Computes ```N``` uniformly spaced points of floating point type ```T``` on [1.0,-1.0] and scales the points to the
+interval given in ```domain``` (defaults to [1.0,-1.0]).  Returns a vector containing the ```N``` points located 
+over the specified domain.
 
+Signature
+=========
+
+points = clenshaw_curtis_equidistant(T,N,domain)
+
+Examples
+========
+```
+julia> using DoubleFloats
+julia> points = clenshaw_curtis_equidistant(Double64,4)
+[-1.0
+ -0.33333333333333337
+  0.33333333333333337
+  1.0]
+
+julia> points = clenshaw_curtis_equidistant(Double64,4,[3.0,-1.0])
+[-1.0
+  0.33333333333333326
+  1.6666666666666667
+  3.0]
+
+  julia> points = clenshaw_curtis_equidistant(BigFloat,4,[3.0,-1.0])
+[-1.0
+  0.3333333333333332593184650249895639717578887939453125
+  1.6666666666666667406815349750104360282421112060546875
+  3.0]
+```
+"""
+function clenshaw_curtis_equidistant(T::DataType,n::S,domain = [1.0,-1.0]) where {S<:Integer}
+
+  # Construct the nodes on the [-1.0,1.0] interval
+
+  if n == 1
+    nodes   = [zero(T)] # allocates
+  else
+    nodes    = zeros(T,n) # allocates
+    nodes[1] = -one(T)
+    nodes[n] =  one(T)
+    for i = 2:div(n,2)
+      nodes[i]       =  2*(i-1)/(n-1) - one(T)
+      nodes[end-i+1] = -2*(i-1)/(n-1) + one(T)
+    end
+  end
+
+  # Scale the nodes to the desired domain
+
+  scale_nodes!(nodes,domain)
+
+  return nodes
+
+end
+
+"""
+Creates the multi-index for a ```d```-variable ansiotropic grid with layers given by the vector ```mu```.  Returns
+a matrix orf integers.
+
+Signature
+=========
+
+m_index = generate_multi_index(d,mu)
+
+Example
+=======
+```
+julia> m_index = generate_multi_index(2,[2,1])
+[1  1
+ 2  1
+ 3  1
+ 1  2
+ 2  2]
+"""
 function generate_multi_index(d::S,mu::Array{S,1}) where {S<:Integer}
 
   nt = num_terms(mu,d)
@@ -80,8 +210,26 @@ function generate_multi_index(d::S,mu::Array{S,1}) where {S<:Integer}
 
 end
 
-# The function below relates to the isotropic case
+"""
+Creates the multi-index for a ```d```-variable isotropic grid with layers given by the integer ```mu```. Returns
+a matrix of integers.
 
+Signature
+=========
+
+m_index = generate_multi_index(d,mu)
+
+Example
+=======
+```
+julia> m_index = generate_multi_index(2,2])
+[1  1
+ 2  1
+ 3  1
+ 1  2
+ 2  2
+ 1  3]
+"""
 function generate_multi_index(d::S,mu::S) where {S<:Integer}
 
   if d == 1
@@ -105,11 +253,10 @@ function generate_multi_index(d::S,mu::S) where {S<:Integer}
   end
 end    
   
-# Following function computes the number of terms in the multi-index for the
-# isotropic case (it also computes the number of terms in a complete
-# polynominal based on the order and the number of dimensions).
+# Computes the number of terms in the multi-index for the isotropic case (it also computes the number of terms in
+# a complete polynominal based on the order and the number of dimensions).
 
-function num_terms(order::S,d::S) where {S <: Integer}
+function num_terms(order::S,d::S) where {S <: Integer} # Internal function, not exported
 
   if d == 1
     return order+1
@@ -119,10 +266,9 @@ function num_terms(order::S,d::S) where {S <: Integer}
 
 end
 
-# The following function is a poor approximation to the number of terms in
-# the multi-index for the ansiotropic case.
+# Poorly approximates the number of terms in the multi-index for the ansiotropic case.
 
-function num_terms(order::Array{S,1},d::S) where {S<:Integer}
+function num_terms(order::Array{S,1},d::S) where {S<:Integer} # Internal function, not exported
 
   max_mu = maximum(order)
   nt = num_terms(max_mu,d) # Deliberate over-estimate of the number of terms
@@ -131,10 +277,12 @@ function num_terms(order::Array{S,1},d::S) where {S<:Integer}
   
 end
 
-m_i(x::S) where {S <: Integer} = (x == 1 ? 1 : 2^(x-1) + 1)
-m_i(x::Array{S,N}) where {S <: Integer,N} = m_i.(x)
+m_i(x::S) where {S <: Integer} = (x == 1 ? 1 : 2^(x-1) + 1) # Internal function, not exported
+m_i(x::Array{S,N}) where {S <: Integer,N} = m_i.(x) # Internal function not exported
 
-function combine_nodes(nodes1::Union{Array{R,1},Array{R,2}},nodes2::Array{R,1}) where {R<:Number}  # nodes1 can be a 1d or 2d array; nodes2 is a 1d array
+function combine_nodes(nodes1::Union{Array{R,1},Array{R,2}},nodes2::Array{R,1}) where {R<:Number} # Internal function, not exported
+  
+  # nodes1 can be a 1d or 2d array; nodes2 is a 1d array
 
   n1 = size(nodes1,1)
   n2 = size(nodes1,2)
@@ -155,18 +303,7 @@ function combine_nodes(nodes1::Union{Array{R,1},Array{R,2}},nodes2::Array{R,1}) 
 
 end
 
-function scale_nodes(nodes::Array{R,1},domain::Array{T,1}) where {T<:AbstractFloat,R<:Number}
-
-  nodes = copy(nodes)
-  @inbounds for i in eachindex(nodes)
-    nodes[i] = domain[2] + (1.0+nodes[i])*(domain[1]-domain[2])*0.5
-  end
-
-  return nodes
-
-end
-
-function scale_nodes!(nodes::Array{R,1},domain::Array{T,1}) where {T<:AbstractFloat,R<:Number}
+function scale_nodes!(nodes::Array{R,1},domain::Array{T,1}) where {T<:AbstractFloat,R<:Number} # Internal function, not exported
 
   @inbounds for i in eachindex(nodes)
     nodes[i] = domain[2] + (1.0+nodes[i])*(domain[1]-domain[2])*0.5
@@ -174,18 +311,7 @@ function scale_nodes!(nodes::Array{R,1},domain::Array{T,1}) where {T<:AbstractFl
 
 end
 
-function scale_nodes(nodes::Array{R,2},domain::Array{T,2}) where {T<:AbstractFloat,R<:Number}
-
-  nodes = copy(nodes)
-  @inbounds for i in CartesianIndices(nodes)
-    nodes[i] = domain[2,i[2]] + (1.0+nodes[i])*(domain[1,i[2]]-domain[2,i[2]])*0.5
-  end
-
-  return nodes
-
-end
-
-function scale_nodes!(nodes::Array{R,2},domain::Array{T,2}) where {T<:AbstractFloat,R<:Number}
+function scale_nodes!(nodes::Array{R,2},domain::Array{T,2}) where {T<:AbstractFloat,R<:Number} # Internal function, not exported
 
   @inbounds for i in CartesianIndices(nodes)
     nodes[i] = domain[2,i[2]] + (1.0+nodes[i])*(domain[1,i[2]]-domain[2,i[2]])*0.5
@@ -193,14 +319,34 @@ function scale_nodes!(nodes::Array{R,2},domain::Array{T,2}) where {T<:AbstractFl
    
 end
 
-# These functions relate to both an ansiotropic and an isotropic grid
-
 """
-Construct a 'd'-dimensional Smolyak grid with layer equal to 'mu' on the unit cube.
-"""
-function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}}) where {S<:Integer}
+Uses the ```node_type``` function to construt the ```d```-dimensional Smolyak grid with approximation layer
+```mu``` and ```domain```.  If ```mu``` is an integer (vector of integers) the isotropic (ansiotropic) grid is
+constructed.  Returns the approximation grid and the associated multi-index.  If ```domain``` is not provided,
+then the approximation domain defaults to [1.0,-1.0]^d.
 
-  T = typeof(1.0)
+Signatures
+==========
+
+grid, multi_index = smolyak_grid(node_type,d,mu)
+grid, multi_index = smolyak_grid(chebyshev_extrema,d,mu,domain)
+
+Examples
+========
+```
+julia> grid, m_index = smolyak_grid(chebyshev_extrema,2,2)
+julia> grid, m_index = smolyak_grid(chebyshev_extrema,2,[2,1])
+julia> grid, m_index = smolyak_grid(chebyshev_extrema,2,2,[3.0 1.5; 2.0 0.5])
+julia> grid, m_index = smolyak_grid(chebyshev_extrema,2,[2,2],[3.0 1.5; 2.0 0.5])
+```
+"""
+function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}},domain=[ones(1, d); -ones(1, d)]) where {S<:Integer}
+
+  if size(domain,2) != d
+    error("'domain' has too many or too few columns.")
+  end
+
+  T = eltype(domain)
 
   multi_index        = generate_multi_index(d,mu)
   unique_multi_index = sort(unique(multi_index))
@@ -223,7 +369,7 @@ function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}}) where {S
 
   # Construct the sparse grid from the unique nodes
 
-  nodes = Array{T,2}(undef,determine_grid_size(multi_index))
+  grid = Array{T,2}(undef,determine_grid_size(multi_index))
   l = 1
   @inbounds for j in axes(multi_index,1)
     new_nodes = unique_base_nodes[multi_index[j,1]] # Here new_nodes is a 1d array
@@ -231,38 +377,25 @@ function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}}) where {S
       new_nodes = combine_nodes(new_nodes,unique_base_nodes[multi_index[j,i]])  # Here new_nodes becomes a 2d array
     end
     m = size(new_nodes,1)
-    nodes[l:l+m-1,:] = new_nodes
+    grid[l:l+m-1,:] = new_nodes
     l += m
   end
 
   if d == 1
-    nodes = nodes[:]
+    grid = grid[:]
   end
-
-  return nodes, multi_index
-
-end
-
-"""
-Construct a 'd'-dimensional Smolyak grid with layer equal to 'mu' on the domain given by 'domain'.
-"""
-function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}},domain::Union{Array{T,1},Array{T,2}}) where {S<:Integer, T<:AbstractFloat}
-
-  if size(domain,2) != d
-    error("domain is inconsistent with the number of dimensions")
-  end
-
-  (nodes, multi_index) = smolyak_grid(node_type,d,mu)
-
+  
   # Now scale the nodes to the desired domain
 
-  nodes = scale_nodes(nodes,domain)
+  scale_nodes!(grid,domain)
 
-  return nodes, multi_index
+  return grid, multi_index
 
 end
 
-function determine_grid_size(mi)
+# Uses the multi-index to determine the grid size.
+
+function determine_grid_size(mi::AbstractArray{S,N}) where {S<:Integer,N} # Internal function, not exported
 
   temp = similar(mi)
 
@@ -292,9 +425,25 @@ function determine_grid_size(mi)
 end
 
 """
-Constructs a Smolyak approximation plan.
+Constructs a Smolyak approximation plan, given the ```node_type``` function, the number of dimensions, ```d```, the
+approximation layers, ```mu```, and the approximation ```domain``` (defaults to [1.0,-1.0]^d).  Returns an SApproxPlan
+struct.
+
+Signature
+=========
+
+splan = smolyal_plan(node_type,d,mu,domain)
+
+Examples
+========
+```
+julia> splan = smolyak_plan(chebyshev_extrema,2,2)
+julia> splan = smolyak_plan(clenshaw_curtis_equidistant,2,[2,2])
+julia> splan = smolyak_plan(chebyshev_extrema,2,2,[3.0 1.5; 2.0 0.5])
+julia> splan = smolyak_plan(clenshaw_curtis_equidistant,2,[2,2],[3.0 1.5; 2.0 0.5])
+```
 """
-function smolyak_plan(node_type::Function,d::S,mu::Union{S,Array{S,1}},domain::Union{Array{T,1},Array{T,2}}) where {S<:Integer, T<:AbstractFloat}
+function smolyak_plan(node_type::Function,d::S,mu::Union{S,Array{S,1}},domain=[ones(1, d); -ones(1, d)]) where {S<:Integer}
 
   g, mi = smolyak_grid(node_type,d,mu,domain)
 
@@ -305,11 +454,34 @@ function smolyak_plan(node_type::Function,d::S,mu::Union{S,Array{S,1}},domain::U
 end
 
 """
-Computes the weights in a Smolyak polynomial approximation.
-"""
-function smolyak_weights(y::Array{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}}) where {T<:AbstractFloat,S<:Integer}
+Uses Chebyshev polynomials as basis functions to compute the weights in a Smolyak polynomial approximation given the
+approximation sample, ```y```, the approximation ```grid```, the ```multi_index```, and the approximation 
+```domain``` (defaults to [1.0,-1.0]^d).  Returns a vector containing the weights in the Smolyak polynomial.
 
-  interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
+Signature
+=========
+
+w = smolyak_weights(y,grid,multi_index,domain)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> f(x) = sum(x.^2)
+julia> y = [f(g[i,:]) for i in axes(g,1)]
+julia> w = smolyak_weights(y,g,mi,[1.0 1.0; 0.0 0.0])
+```
+"""
+function smolyak_weights(y::Array{T,1},grid::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
+
+  # Normalize grid to the [1.0,-1.0]^d interval
+
+  grid = copy(grid)
+  for i in axes(grid,2)
+    grid[:,i] = normalize_node(grid[:,i],domain[:,i])
+  end
+
+  interpolation_matrix = zeros(size(grid,1),size(grid,1))
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders      = m_i.(unique_multi_index) .- 1
@@ -319,17 +491,17 @@ function smolyak_weights(y::Array{T,1},nodes::Union{Array{T,1},Array{T,2}},multi
   #   Generate the polynomial terms for each order
   #   Generate the unique polynomial terms introduced at each higher order
   #   Combine the polynomial terms to construct a row of the interpolation matrix
-  #   Iterate over the nodes, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
+  #   Iterate over the grid, doing the above for steps at each iteration, to compute all rows of the interpolation matrix
 
   base_polynomials        = Array{Array{T,2},1}(undef,length(unique_orders))
   unique_base_polynomials = Array{Array{T,2},1}(undef,length(unique_orders))
 
-  @inbounds for k in axes(nodes,1)
+  @inbounds for k in axes(grid,1)
 
     # Construct the base polynomials
 
     for i in eachindex(unique_orders)
-      base_polynomials[i] = chebyshev_polynomial(unique_orders[i],nodes[k,:])
+      base_polynomials[i] = chebyshev_polynomial(unique_orders[i],grid[k,:])
     end
 
     # Compute the unique polynomial terms from the base polynomials
@@ -361,30 +533,35 @@ function smolyak_weights(y::Array{T,1},nodes::Union{Array{T,1},Array{T,2}},multi
 end
 
 """
-Computes the weights in a Smolyak polynomial approximation.
+Uses Chebyshev polynomials as basis functions to compute using multi-threading the weights in a Smolyak polynomial
+approximation given the approximation sample, ```y```, the approximation ```grid```, the ```multi_index```, and 
+the approximation ```domain``` (defaults to [1.0,-1.0]^d).  Returns a vector containing the weights in the Smolyak
+polynomial.
+
+Signature
+=========
+
+w = smolyak_weights_threaded(y,grid,multi_index,domain)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> f(x) = sum(x.^2)
+julia> y = [f(g[i,:]) for i in axes(g,1)]
+julia> w = smolyak_weights_threaded(y,g,mi,[1.0 1.0; 0.0 0.0])
+```
 """
-function smolyak_weights(y::Array{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_weights_threaded(y::Array{T,1},grid::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
 
-  # Normalize nodes to the [-1.0 1.0] interval
+  # Normalize grid to the [1.0,-1.0]^d interval
 
-  d = size(multi_index,2)
-  nodes = copy(nodes)
-  for i = 1:d
-    nodes[:,i] = normalize_node(nodes[:,i],domain[:,i])
+  grid = copy(grid)
+  for i in axes(grid,2)
+    grid[:,i] = normalize_node(grid[:,i],domain[:,i])
   end
 
-  weights = smolyak_weights(y,nodes,multi_index)
-
-  return weights
-
-end
-
-"""
-Computes the weights in a Smolyak polynomial approximation using multi-threading.
-"""
-function smolyak_weights_threaded(y::Array{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}}) where {T<:AbstractFloat,S<:Integer}
-
-  interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
+  interpolation_matrix = zeros(size(grid,1),size(grid,1))
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders      = m_i.(unique_multi_index) .- 1
@@ -394,9 +571,9 @@ function smolyak_weights_threaded(y::Array{T,1},nodes::Union{Array{T,1},Array{T,
   #   Generate the polynomial terms for each order
   #   Generate the unique polynomial terms introduced at each higher order
   #   Combine the polynomial terms to construct a row of the interpolation matrix
-  #   Iterate over the nodes, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
+  #   Iterate over the grid, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
 
-  @inbounds @sync Threads.@threads for k in axes(nodes,1)
+  @inbounds @sync Threads.@threads for k in axes(grid,1)
 
     base_polynomials        = Array{Array{T,2},1}(undef,length(unique_orders))
     unique_base_polynomials = Array{Array{T,2},1}(undef,length(unique_orders))
@@ -404,7 +581,7 @@ function smolyak_weights_threaded(y::Array{T,1},nodes::Union{Array{T,1},Array{T,
     # Construct the base polynomials
 
     for i in eachindex(unique_orders)
-      base_polynomials[i] = chebyshev_polynomial(unique_orders[i],nodes[k,:])
+      base_polynomials[i] = chebyshev_polynomial(unique_orders[i],grid[k,:])
     end
 
     # Compute the unique polynomial terms from the base polynomials
@@ -436,24 +613,25 @@ function smolyak_weights_threaded(y::Array{T,1},nodes::Union{Array{T,1},Array{T,
 end
 
 """
-Computes the weights in a Smolyak polynomial approximation using multi-threading.
+Uses Chebyshev polynomials as basis functions to compute the weights in a Smolyak polynomial
+approximation given the approximation sample, ```y```, the ```inverse interpolation matrix```.
+Returns a vector containing the weights in the Smolyak polynomial.
+
+Signature
+=========
+
+w = smolyak_weights(y,grid,inverse_interpolation_matrix)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> f(x) = sum(x.^2)
+julia> y = [f(g[i,:]) for i in axes(g,1)]
+julia> iim = smolyak_inverse_interpolation_matrix(g,mi)
+julia> w = smolyak_weights(y,iim)
+```
 """
-function smolyak_weights_threaded(y::Array{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
-
-  # Normalize nodes to the [-1.0 1.0] interval
-
-  d = size(multi_index,2)
-  nodes = copy(nodes)
-  for i = 1:d
-    nodes[:,i] = normalize_node(nodes[:,i],domain[:,i])
-  end
-
-  weights = smolyak_weights_threaded(y,nodes,multi_index)
-
-  return weights
-
-end
-
 function smolyak_weights(y::Array{T,1},inverse_interpolation_matrix::Array{T,2}) where {T<:AbstractFloat}
 
   weights = inverse_interpolation_matrix*y
@@ -463,11 +641,32 @@ function smolyak_weights(y::Array{T,1},inverse_interpolation_matrix::Array{T,2})
 end
 
 """
-Constructs the inverse interpolation matrix.
-"""
-function smolyak_inverse_interpolation_matrix(nodes::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}}) where {T<:AbstractFloat,S<:Integer}
+Uses Chebyshev polynomials as basis functions to compute the inverse interpolation matrix for a Smolyak polynomial
+approximation given the approximation grid, ```grid```, the ```multi_index```, and the approximation ```domain``` 
+(defaults to [1.0,-1.0]^d).  Returns a matrix containing the inverse interoplation matrix.
 
-  interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
+Signature
+=========
+
+iim = smolyak_inverse_interpolation_matrix(grid,multi_index,domain)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> iim = smolyak_inverse_interpolation_matrix(g,mi)
+```
+"""
+function smolyak_inverse_interpolation_matrix(grid::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
+
+  # Normalize grid to the [1.0,-1.0]^d interval
+  
+  grid = copy(grid)
+  for i in axes(grid,2)
+    grid[:,i] = normalize_node(grid[:,i],domain[:,i])
+  end
+
+  interpolation_matrix = zeros(size(grid,1),size(grid,1))
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders      = m_i.(unique_multi_index) .- 1
@@ -477,17 +676,17 @@ function smolyak_inverse_interpolation_matrix(nodes::Union{Array{T,1},Array{T,2}
   #   Generate the polynomial terms for each order
   #   Generate the unique polynomial terms introduced at each higher order
   #   Combine the polynomial terms to construct a row of the interpolation matrix
-  #   Iterate over the nodes, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
+  #   Iterate over the grid, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
 
   base_polynomials        = Array{Array{T,2},1}(undef,length(unique_orders))
   unique_base_polynomials = Array{Array{T,2},1}(undef,length(unique_orders))
 
-  @inbounds for k in axes(nodes,1)
+  @inbounds for k in axes(grid,1)
 
     # Construct the base polynomials
 
     for i in eachindex(unique_orders)
-      base_polynomials[i] = chebyshev_polynomial(unique_orders[i],nodes[k,:])
+      base_polynomials[i] = chebyshev_polynomial(unique_orders[i],grid[k,:])
     end
 
     # Compute the unique polynomial terms from the base polynomials
@@ -519,30 +718,32 @@ function smolyak_inverse_interpolation_matrix(nodes::Union{Array{T,1},Array{T,2}
 end
 
 """
-Constructs the inverse interpolation matrix.
+Uses Chebyshev polynomials as basis functions to compute using multi-threading the inverse interpolation matrix for
+a Smolyak polynomial approximation given the approximation grid, ```grid```, the ```multi_index```, and the 
+approximation ```domain``` (defaults to [1.0,-1.0]^d).  Returns a matrix containing the inverse interoplation matrix.
+
+Signature
+=========
+
+iim = smolyak_inverse_interpolation_matrix_threaded(grid,multi_index,domain)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> iim = smolyak_inverse_interpolation_matrix_threaded(g,mi)
+```
 """
-function smolyak_inverse_interpolation_matrix(nodes::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_inverse_interpolation_matrix_threaded(grid::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
 
-  # Normalize nodes to the [-1.0 1.0] interval
-
-  d = size(multi_index,2)
-  nodes = copy(nodes)
-  for i = 1:d
-    nodes[:,i] = normalize_node(nodes[:,i],domain[:,i])
+  # Normalize grid to the [1.0,-1.0]^d interval
+    
+  grid = copy(grid)
+  for i in axes(grid,2)
+    grid[:,i] = normalize_node(grid[:,i],domain[:,i])
   end
 
-  inverse_interpolation_matrix = smolyak_inverse_interpolation_matrix(nodes,multi_index)
-
-  return inverse_interpolation_matrix
-
-end
-
-"""
-Constructs the inverse interpolation matrix using multi-threading.
-"""
-function smolyak_inverse_interpolation_matrix_threaded(nodes::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}}) where {T<:AbstractFloat,S<:Integer}
-
-  interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
+  interpolation_matrix = zeros(size(grid,1),size(grid,1))
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders      = m_i.(unique_multi_index) .- 1
@@ -552,9 +753,9 @@ function smolyak_inverse_interpolation_matrix_threaded(nodes::Union{Array{T,1},A
   #   Generate the polynomial terms for each order
   #   Generate the unique polynomial terms introduced at each higher order
   #   Combine the polynomial terms to construct a row of the interpolation matrix
-  #   Iterate over the nodes, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
+  #   Iterate over the grid, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
 
-  @inbounds @sync Threads.@threads for k in axes(nodes,1)
+  @inbounds @sync Threads.@threads for k in axes(grid,1)
 
     base_polynomials        = Array{Array{T,2},1}(undef,length(unique_orders))
     unique_base_polynomials = Array{Array{T,2},1}(undef,length(unique_orders))
@@ -562,7 +763,7 @@ function smolyak_inverse_interpolation_matrix_threaded(nodes::Union{Array{T,1},A
     # Construct the base polynomials
 
     for i in eachindex(unique_orders)
-      base_polynomials[i] = chebyshev_polynomial(unique_orders[i],nodes[k,:])
+      base_polynomials[i] = chebyshev_polynomial(unique_orders[i],grid[k,:])
     end
 
     # Compute the unique polynomial terms from the base polynomials
@@ -594,38 +795,43 @@ function smolyak_inverse_interpolation_matrix_threaded(nodes::Union{Array{T,1},A
 end
 
 """
-Constructs the inverse interpolation matrix using multi-threading.
+Computes the weights in a Smolyak polynomial approximation formed using piecewise linear basis functions given the 
+approximation sample, ```y```, the approximation ```grid```, the ```multi_index```, and the approximation 
+```domain``` (defaults to [1.0,-1.0]^d).  Returns a vector containing the weights in the Smolyak
+polynomial.
+
+Signature
+=========
+
+w = smolyak_pl_weights(y,grid,multi_index,domain)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(clenshaw_curtis_equidistant,2,2,[1.0 1.0; 0.0 0.0])
+julia> f(x) = sum(x.^2)
+julia> y = [f(g[i,:]) for i in axes(g,1)]
+julia> w = smolyak_pl_weights(y,g,mi,[1.0 1.0; 0.0 0.0])
+```
 """
-function smolyak_inverse_interpolation_matrix_threaded(nodes::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_pl_weights(y::AbstractArray{T,1},grid::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
 
-  # Normalize nodes to the [-1.0 1.0] interval
-
-  d = size(multi_index,2)
-  nodes = copy(nodes)
-  for i = 1:d
-    nodes[:,i] = normalize_node(nodes[:,i],domain[:,i])
+  # Normalize grid to the [1.0,-1.0]^d interval
+    
+  grid = copy(grid)
+  for i in axes(grid,2)
+    grid[:,i] = normalize_node(grid[:,i],domain[:,i])
   end
 
-  inverse_interpolation_matrix = smolyak_inverse_interpolation_matrix_threaded(nodes,multi_index)
+  interpolation_matrix = zeros(size(grid,1),size(grid,1))
 
-  return inverse_interpolation_matrix
-
-end
-
-"""
-Computes the weights for a Smolyak approximation based on equidistant nodes.
-"""
-function smolyak_pl_weights(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}}) where {T<:AbstractFloat,S<:Integer}
-
-  interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
-
-  @inbounds for l in axes(nodes,1)
+  @inbounds for l in axes(grid,1)
     k = 1
-    x = nodes[l,:]
+    x = grid[l,:]
     @inbounds for i in axes(multi_index,1)
       m_node_number = m_i.(multi_index[i,:])
       if prod(m_node_number) == 1
-        interpolation_matrix[l,k] = 1.0
+        interpolation_matrix[l,k] = one(T)
         k += 1
       else
         extra_nodes = 1
@@ -635,13 +841,13 @@ function smolyak_pl_weights(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{
           end
         end
         for h = 1:extra_nodes
-          a = 1.0
+          a = one(T)
           @inbounds for j in eachindex(m_node_number)
             if m_node_number[j] > 1
-              if abs(x[j] - nodes[k,j]) > 2/(m_node_number[j]-1)
-                a *= 0.0
+              if abs(x[j] - grid[k,j]) > 2/(m_node_number[j]-1)
+                a *= zero(T)
               else
-                a *= 1.0 - ((m_node_number[j]-1)/2)*abs(x[j]-nodes[k,j])
+                a *= one(T) - ((m_node_number[j]-1)/2)*abs(x[j]-grid[k,j])
               end
             end
           end
@@ -659,34 +865,39 @@ function smolyak_pl_weights(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{
 end
 
 """
-Computes the weights for a Smolyak approximation based on equidistant nodes.
+Uses multi-threading to compute the weights in a Smolyak polynomial approximation formed using piecewise linear
+basis functions given the approximation sample, ```y```, the approximation ```grid```, the ```multi_index```, 
+and the approximation ```domain``` (defaults to [-1.0,1.0]^d).  Returns a vector containing the weights in the 
+Smolyak polynomial.
+
+Signature
+=========
+
+w = smolyak_pl_weights_threaded(y,grid,multi_index,domain)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(clenshaw_curtis_equidistant,2,2,[1.0 1.0; 0.0 0.0])
+julia> f(x) = sum(x.^2)
+julia> y = [f(g[i,:]) for i in axes(g,1)]
+julia> w = smolyak_pl_weights_threaded(y,g,mi,[1.0 1.0; 0.0 0.0])
+```
 """
-function smolyak_pl_weights(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_pl_weights_threaded(y::AbstractArray{T,1},grid::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
 
-  # Normalize nodes to the [-1.0 1.0] interval
-
-  d = size(multi_index,2)
-  nodes = copy(nodes)
-  @inbounds for i = 1:d
-    nodes[:,i] = normalize_node(nodes[:,i],domain[:,i])
+  # Normalize grid to the [1.0,-1.0]^d interval
+      
+  grid = copy(grid)
+  for i in axes(grid,2)
+    grid[:,i] = normalize_node(grid[:,i],domain[:,i])
   end
+  
+  interpolation_matrix = zeros(size(grid,1),size(grid,1))
 
-  weights = smolyak_pl_weights(y,nodes,multi_index)
-
-  return weights
-
-end
-
-"""
-Computes the weights for a Smolyak approximation based on equidistant nodes using multi-threading.
-"""
-function smolyak_pl_weights_threaded(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}}) where {T<:AbstractFloat,S<:Integer}
-
-  interpolation_matrix = zeros(size(nodes,1),size(nodes,1))
-
-  @inbounds @sync Threads.@threads for l in axes(nodes,1)
+  @inbounds @sync Threads.@threads for l in axes(grid,1)
     k = 1
-    x = nodes[l,:]
+    x = grid[l,:]
     @inbounds for i in axes(multi_index,1)
       m_node_number = m_i.(multi_index[i,:])
       if prod(m_node_number) == 1
@@ -703,10 +914,10 @@ function smolyak_pl_weights_threaded(y::AbstractArray{T,1},nodes::Union{Array{T,
           a = 1.0
           @inbounds for j in eachindex(m_node_number)
             if m_node_number[j] > 1
-              if abs(x[j] - nodes[k,j]) > 2/(m_node_number[j]-1)
+              if abs(x[j] - grid[k,j]) > 2/(m_node_number[j]-1)
                 a *= 0.0
               else
-                a *= 1.0 - ((m_node_number[j]-1)/2)*abs(x[j]-nodes[k,j])
+                a *= 1.0 - ((m_node_number[j]-1)/2)*abs(x[j]-grid[k,j])
               end
             end
           end
@@ -724,29 +935,30 @@ function smolyak_pl_weights_threaded(y::AbstractArray{T,1},nodes::Union{Array{T,
 end
 
 """
-Computes the weights for a Smolyak approximation based on equidistant nodes using multi-threading.
+Computes a Smolyak polynomial given the ```node``` in the approximation grid, the ```multi-index```, and the approximation ```domain``` (defaults to [-1.0,1.0]^d).
+Returns a vector containing the basis functions in the polynomial evaluated at ```node```.
+
+Signature
+=========
+
+spoly = smolyak_polynomial(node,multi_index,domain)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> node = g[5,:]
+julia> sploy = smolyak_polynomial(node,mi,[1.0 1.0; 0.0 0.0])
+```
 """
-function smolyak_pl_weights_threaded(y::AbstractArray{T,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
+function smolyak_polynomial(node::AbstractArray{R,1},multi_index::Union{Array{S,1},Array{S,2}},domain=[ones(1,length(node));-ones(1,length(node))]) where {R<:Number,S<:Integer}
 
-  # Normalize nodes to the [-1.0 1.0] interval
-
-  d = size(multi_index,2)
-  nodes = copy(nodes)
-  @inbounds for i = 1:d
-    nodes[:,i] = normalize_node(nodes[:,i],domain[:,i])
+  # Normalize grid to the [1.0,-1.0]^d interval
+      
+  node = copy(node)
+  for i in eachindex(node)
+    node[i] = normalize_node(node[i],domain[:,i])
   end
-
-  weights = smolyak_pl_weights_threaded(y,nodes,multi_index)
-
-  return weights
-
-end
-
-"""
-Computes a Smolyak polynomial.
-"""
-function smolyak_polynomial(node::AbstractArray{R,1},multi_index::Union{Array{S,1},Array{S,2}}) where {R<:Number,S<:Integer}
-
   unique_multi_index = sort(unique(multi_index))
   unique_orders = m_i.(unique_multi_index) .- 1
 
@@ -776,7 +988,7 @@ function smolyak_polynomial(node::AbstractArray{R,1},multi_index::Union{Array{S,
   n = determine_grid_size(multi_index)
   polynomial = Array{R,1}(undef,n[1])
 
-  # Iterate over nodes, doing the above three steps at each iteration
+  # Iterate over grid, doing the above three steps at each iteration
 
   l = 1
   @inbounds for j in axes(multi_index,1)
@@ -794,31 +1006,33 @@ function smolyak_polynomial(node::AbstractArray{R,1},multi_index::Union{Array{S,
 end
 
 """
-Computes a Smolyak polynomial.
+Evaluates a Smolyak polynomial formed using Chebyshev basis functions, given the ```weights```, the ```point``` at
+which to evaluate the polynomial, the ```multi_index```, and the approximation ```domain``` (defaults to [1.0,-1.0]^d).
+Returns a scalar.
+
+Signature
+=========
+
+yhat = smolyak_evaluate(weights,point,multi_index,domain)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> w = smolyak_weights(y,g,mi,[1.0 1.0; 0.0 0.0])
+julia> yhat = smolyak_evaluate(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
+0.5953026581237828
+```
 """
-function smolyak_polynomial(node::AbstractArray{R,1},multi_index::Union{Array{S,1},Array{S,2}},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
+function smolyak_evaluate(weights::Array{T,1},point::AbstractArray{R,1},multi_index::Union{Array{S,1},Array{S,2}},domain=[ones(1,length(point));-ones(1,length(point))]) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
-  node = copy(node)
+  # Normalize point to the [1.0,-1.0]^d interval
 
-  if size(domain,2) != length(node)
-    error("domain is inconsistent with the number of dimensions")
+  point = copy(point)
+  for i in eachindex(point)
+    point[i] = normalize_node(point[i],domain[:,i])
   end
-
-  d = length(node)
-  for i = 1:d
-    node[i] = normalize_node(node[i],domain[:,i])
-  end
-
-  poly = smolyak_polynomial(node,multi_index)
-
-  return poly
-
-end
-
-"""
-Evaluates a Smolyak polynomial.
-"""
-function smolyak_evaluate(weights::Array{T,1},node::AbstractArray{R,1},multi_index::Union{Array{S,1},Array{S,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders = m_i.(unique_multi_index) .- 1
@@ -833,7 +1047,7 @@ function smolyak_evaluate(weights::Array{T,1},node::AbstractArray{R,1},multi_ind
   
   base_polynomials = Array{Array{R,2}}(undef,length(unique_orders))
   for i in eachindex(unique_orders)
-    base_polynomials[i] = chebyshev_polynomial(unique_orders[i],node)
+    base_polynomials[i] = chebyshev_polynomial(unique_orders[i],point)
   end
   
   # Compute the unique polynomial terms from the base polynomials
@@ -848,10 +1062,10 @@ function smolyak_evaluate(weights::Array{T,1},node::AbstractArray{R,1},multi_ind
   
   polynomials = Array{R,1}(undef,length(weights))
   
-  # Iterate over nodes, doing the above three steps at each iteration
+  # Iterate over grid, doing the above three steps at each iteration
   
   l = 1
-    @inbounds for j in axes(multi_index,1)
+  @inbounds for j in axes(multi_index,1)
     new_polynomials = unique_base_polynomials[multi_index[j,1]][1,:]
     for i = 2:size(multi_index,2)
       new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][i,:])
@@ -871,29 +1085,24 @@ function smolyak_evaluate(weights::Array{T,1},node::AbstractArray{R,1},multi_ind
 end
 
 """
-Evaluates a Smolyak polynomial.
-"""
-function smolyak_evaluate(weights::Array{T,1},node::AbstractArray{R,1},multi_index::Union{Array{S,1},Array{S,2}},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
-  
-  node = copy(node)
-  
-  if size(domain,2) != length(node)
-    error("domain is inconsistent with the number of dimensions")
-  end
-  
-  d = length(node)
-  for i = 1:d
-    node[i] = normalize_node(node[i],domain[:,i])
-  end
-  
-  estimate = smolyak_evaluate(weights,node,multi_index)
-  
-  return estimate
-  
-end
+Evaluates a Smolyak polynomial formed using Chebyshev basis functions, given the ```weights``` and a Smolyak polynomial.
+Returns a scalar.
 
-"""
-Evaluates a Smolyak polynomial.
+Signature
+=========
+
+yhat = smolyak_evaluate(weights,polynomial)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> w = smolyak_weights(y,g,mi,[1.0 1.0; 0.0 0.0])
+julia> p = smolyak_polynomial([0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
+julia> yhat = smolyak_evaluate(w,p)
+0.5953026581237828
+```
 """
 function smolyak_evaluate(weights::Array{T,1},polynomial::Array{R,1}) where {T<:AbstractFloat,R<:Number}
 
@@ -904,11 +1113,35 @@ function smolyak_evaluate(weights::Array{T,1},polynomial::Array{R,1}) where {T<:
 end
 
 """
-Evaluates a Smolyak approximation based on equidistant nodes.
-"""
-function smolyak_pl_evaluate(weights::Array{T,1},point::Array{R,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
+Evaluates a Smolyak polynomial formed using piecewise linear basis functions, given the ```weights```, the ```point``` at
+which to evaluate the polynomial, approximation ```grid```, the ```multi_index```, and the approximation ```domain``` 
+(defaults to [1.0,-1.0]^d).  Returns a scalar.
 
-  basis = Array{R,1}(undef,size(nodes,1))
+Signature
+=========
+
+yhat = smolyak_pl,evaluate(weights,point,grid,multi_index,domain)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(clenshaw_curtis_equidistant,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> w = smolyak_pl_weights(y,g,mi,[1.0 1.0; 0.0 0.0])
+julia> yhat = smolyak_pl_evaluate(w,[0.37,0.71],g,mi,[1.0 1.0; 0.0 0.0])
+0.5549321821467206
+```
+"""
+function smolyak_pl_evaluate(weights::Array{T,1},point::Array{R,1},grid::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}},domain=[ones(1,length(point)); -ones(1,length(point))]) where {T<:AbstractFloat,R<:Number,S<:Integer}
+
+  grid  = copy(grid)
+  point = copy(point)
+  @inbounds for i in eachindex(point)
+    grid[:,i] = normalize_node(grid[:,i],domain[:,i])
+    point[i] = normalize_node(point[i],domain[:,i])
+  end
+
+  basis = Array{R,1}(undef,size(grid,1))
   k = 1
   @inbounds for i in axes(multi_index,1)
     m_node_number = m_i.(multi_index[i,:])
@@ -926,10 +1159,10 @@ function smolyak_pl_evaluate(weights::Array{T,1},point::Array{R,1},nodes::Union{
         a = 1.0
         @inbounds for j in eachindex(m_node_number)
           if m_node_number[j] > 1
-            if abs(point[j] - nodes[k,j]) > 2/(m_node_number[j]-1)
+            if abs(point[j] - grid[k,j]) > 2/(m_node_number[j]-1)
               a *= zero(R)
             else
-              a *= one(R) - ((m_node_number[j]-1)/2)*abs(point[j]-nodes[k,j])
+              a *= one(R) - ((m_node_number[j]-1)/2)*abs(point[j]-grid[k,j])
             end
           end
         end
@@ -949,26 +1182,31 @@ function smolyak_pl_evaluate(weights::Array{T,1},point::Array{R,1},nodes::Union{
 end
 
 """
-Evaluates a Smolyak approximation based on equidistant nodes.
-"""
-function smolyak_pl_evaluate(weights::Array{T,1},point::Array{R,1},nodes::Union{Array{T,1},Array{T,2}},multi_index::Union{Array{S,1},Array{S,2}},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
+Creates an interpolating function for a Smolyak approximation given the sampling points, ```y```, and the approximation ```plan```.
+Returns an interpolating function.
 
-  d = size(multi_index,2)
-  nodes = copy(nodes)
-  point = copy(point)
-  @inbounds for i = 1:d
-    nodes[:,i] = normalize_node(nodes[:,i],domain[:,i])
-    point[i] = normalize_node(point[i],domain[:,i])
-  end
+Signature
+=========
 
-  estimate = smolyak_pl_evaluate(weights,point,nodes,multi_index)
+f = smolyak_interp(y,plan)
 
-  return estimate
+Examples
+========
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> splan = smolyak_plan(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> f = smolyak_interp(y,splan)
+julia> f([0.37,0.71])
+0.5953026581237828
 
-end
-
-"""
-Creates an interpolating function for a Smolyak approximation.
+julia> g,mi = smolyak_grid(clenshaw_curtis_equidistant,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> splan = smolyak_plan(clenshaw_curtis_equidistant,2,2,[1.0 1.0; 0.0 0.0])
+julia> f = smolyak_interp(y,splan)
+julia> f([0.37,0.71])
+0.5549321821467206
+```
 """
 function smolyak_interp(y::Array{T,1},plan::P) where {T<:AbstractFloat,P<:SApproximationPlan}
 
@@ -993,7 +1231,31 @@ function smolyak_interp(y::Array{T,1},plan::P) where {T<:AbstractFloat,P<:SAppro
 end
 
 """
-Creates an interpolating function for a Smolyak approximation using multi-threading.
+Creates an interpolating function that uses multi-threading to construct an interpolating function given the
+sampling points, ```y```, and the approximation ```plan```.  Returns an interpolating function.
+
+Signature
+=========
+
+f = smolyak_interp_threaded(y,plan)
+
+Examples
+========
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> splan = smolyak_plan(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> f = smolyak_interp_threaded(y,splan)
+julia> f([0.37,0.71])
+0.5953026581237828
+
+julia> g,mi = smolyak_grid(clenshaw_curtis_equidistant,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> splan = smolyak_plan(clenshaw_curtis_equidistant,2,2,[1.0 1.0; 0.0 0.0])
+julia> f = smolyak_interp_threaded(y,splan)
+julia> f([0.37,0.71])
+0.5549321821467206
+```
 """
 function smolyak_interp_threaded(y::Array{T,1},plan::P) where {T<:AbstractFloat,P<:SApproximationPlan}
 
@@ -1017,10 +1279,7 @@ function smolyak_interp_threaded(y::Array{T,1},plan::P) where {T<:AbstractFloat,
 
 end
 
-"""
-Computes a partial derivative of a Smolyak polynomial.
-"""
-function smolyak_derivative(weights::Array{T,1},node::Array{R,1},multi_index::Union{Array{S,1},Array{S,2}},pos::S) where {T<:AbstractFloat,R<:Number,S<:Integer}
+function _smolyak_derivative(weights::Array{T,1},point::Array{R,1},multi_index::Union{Array{S,1},Array{S,2}},pos::S) where {T<:AbstractFloat,R<:Number,S<:Integer} # Internal function, not exported
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders = m_i.(unique_multi_index) .- 1
@@ -1030,8 +1289,8 @@ function smolyak_derivative(weights::Array{T,1},node::Array{R,1},multi_index::Un
   base_polynomials            = Array{Array{R,2},1}(undef,length(unique_orders))
   base_polynomial_derivatives = Array{Array{R,2},1}(undef,length(unique_orders))
   for i in eachindex(unique_orders)
-    base_polynomials[i]            = chebyshev_polynomial(unique_orders[i],node)
-    base_polynomial_derivatives[i] = chebyshev_polynomial_deriv(unique_orders[i],node)
+    base_polynomials[i]            = chebyshev_polynomial(unique_orders[i],point)
+    base_polynomial_derivatives[i] = chebyshev_polynomial_deriv(unique_orders[i],point)
   end
 
   # Compute the unique polynomial terms from the base polynomials
@@ -1081,49 +1340,65 @@ function smolyak_derivative(weights::Array{T,1},node::Array{R,1},multi_index::Un
 end
 
 """
-Computes a partial derivative of a Smolyak polynomial.
+Computes the partial derivative of a Smolyak polynomial formed using Chebyshev basis functions, given the 
+```weights```, the ```point``` at which to evaluate the polynomial, the ```multi_index```, the approximation 
+```domain```, and the index of the variable to differentiate with respect to, ```pos```.
+Returns a scalar.
+
+Signature
+=========
+
+deriv = smolyak_derivative(weights,point,multi_index,domain,pos)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> w = smolyak_weights(y,g,mi,[1.0 1.0; 0.0 0.0])
+julia> deriv1 = smolyak_derivative(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0],1)
+0.40368169538532706
+julia> deriv2 = smolyak_derivative(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0],2)
+0.5250627466157657
+```
 """
-function smolyak_derivative(weights::Array{T,1},node::Array{R,1},multi_index::Union{Array{S,1},Array{S,2}},domain::Union{Array{T,1},Array{T,2}},pos::S) where {T<:AbstractFloat,R<:Number,S<:Integer}
+function smolyak_derivative(weights::Array{T,1},point::Array{R,1},multi_index::Union{Array{S,1},Array{S,2}},domain::Union{Array{T,1},Array{T,2}},pos::S) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
-  node = copy(node)
+  point = copy(point)
 
-  if size(domain,2) != length(node)
-    error("domain is inconsistent with the number of dimensions")
+  for i in eachindex(point)
+    point[i] = normalize_node(point[i],domain[:,i])
   end
 
-  d = length(node)
-  for i = 1:d
-    node[i] = normalize_node(node[i],domain[:,i])
-  end
-
-  evaluated_derivative = smolyak_derivative(weights,node,multi_index,pos)
+  evaluated_derivative = _smolyak_derivative(weights,point,multi_index,pos)
 
   return evaluated_derivative*(2.0/(domain[1,pos]-domain[2,pos]))
 
 end
 
 """
-Computes the gradient of a Smolyak polynomial.
+Computes the gradient a Smolyak polynomial formed using Chebyshev basis functions, given the ```weights```, the
+```point``` at which to evaluate the polynomial, the ```multi_index```, and the approximation ```domain```.  
+Returns a one-row matrix.
+
+Signature
+=========
+
+grad = smolyak_gradient(weights,point,multi_index,domain)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> w = smolyak_weights(y,g,mi,[1.0 1.0; 0.0 0.0])
+julia> grad = smolyak_gradient(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
+[0.403682  0.525063]
+```
 """
-function smolyak_gradient(weights::Array{T,1},node::Array{R,1},multi_index::Union{Array{S,1},Array{S,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
+function smolyak_gradient(weights::Array{T,1},point::Array{R,1},multi_index::Union{Array{S,1},Array{S,2}},domain=[ones(1,length(point));-ones(1,length(point))]) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
-  d = length(node)
-  gradient = Array{R,2}(undef,1,d)
-
-  for i = 1:d
-    gradient[i] = smolyak_derivative(weights,node,multi_index,i)
-  end
-
-  return gradient
-
-end
-
-"""
-Computes the gradient of a Smolyak polynomial.
-"""
-function smolyak_gradient(weights::Array{T,1},node::Array{R,1},multi_index::Union{Array{S,1},Array{S,2}},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
-
-  d = length(node)
+  d = length(point)
   gradient = Array{R,2}(undef,1,d)
 
   for i = 1:d
@@ -1135,7 +1410,24 @@ function smolyak_gradient(weights::Array{T,1},node::Array{R,1},multi_index::Unio
 end
 
 """
-Creates a function to compute the gradient of a Smolyak polynomial.
+Creates an interpolating function to compute the gradient of a Smolyak polynomial given the sampling points, ```y```,
+and the approximation ```plan```.  Returns an interpolating function.
+
+Signature
+=========
+
+grad = smolyak_gradient(y,plan)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> splan = smolyak_plan(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> grad = smolyak_gradient(y,splan)
+julia> grad([0.37,0.71])
+[0.403682  0.525063]
+```
 """
 function smolyak_gradient(y::AbstractArray{T,1},plan::P) where {T<:AbstractFloat,P<:SApproximationPlan}
 
@@ -1156,7 +1448,24 @@ function smolyak_gradient(y::AbstractArray{T,1},plan::P) where {T<:AbstractFloat
 end
 
 """
-Computes the gradient of a Smolyak polynomial using multi-threading.
+Creates an interpolating function that uses multi-treading to compute the gradient of a Smolyak polynomial given the
+sampling points, ```y```, and the approximation ```plan```.  Returns an interpolating function.
+
+Signature
+=========
+
+grad = smolyak_gradient_threaded(y,plan)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> splan = smolyak_plan(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> grad = smolyak_gradient_threaded(y,splan)
+julia> grad([0.37,0.71])
+[0.403682  0.525063]
+```
 """
 function smolyak_gradient_threaded(y::AbstractArray{T,1},plan::P) where {T<:AbstractFloat,P<:SApproximationPlan}
   
@@ -1177,16 +1486,30 @@ function smolyak_gradient_threaded(y::AbstractArray{T,1},plan::P) where {T<:Abst
 end
 
 """
-Computes the hessian of a Smolyak polynomial.
+Computes the hessian a Smolyak polynomial formed using Chebyshev basis functions, given the ```weights```, the
+```point``` at which to evaluate the polynomial, the ```multi_index```, and the approximation ```domain```.  
+Returns a matrix.
+
+Signature
+=========
+
+hess = smolyak_hessian(weights,point,multi_index,domain)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> w = smolyak_weights(y,g,mi,[1.0 1.0; 0.0 0.0])
+julia> hess = smolyak_hessian(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
+[ -2.53475  1.06753
+   1.06753  0.199234]
+```
 """
 function smolyak_hessian(weights::Array{T,1},point::Array{R,1},multi_index::Union{Array{S,1},Array{S,2}},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,R<:Number,S<:Integer}
   
   point = copy(point)
 
-  if size(domain,2) != length(point)
-    error("domain is inconsistent with the number of dimensions")
-  end
-  
   d = length(point)
   for i = 1:d
     point[i] = normalize_node(point[i],domain[:,i])
@@ -1270,9 +1593,31 @@ function smolyak_hessian(weights::Array{T,1},point::Array{R,1},multi_index::Unio
 end
 
 """
-Creates a function to compute the hessian of a Smolyak polynomial.
+Creates an interpolating function to compute the hessian of a Smolyak polynomial given the sampling points, ```y```,
+and the approximation ```plan```.  Returns an interpolating function.
+
+Signature
+=========
+
+hess = smolyak_hessian(y,plan)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> splan = smolyak_plan(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> hess = smolyak_hessian(y,splan)
+julia> hess([0.37,0.71])
+[-2.53475  1.06753
+  1.06753  0.199234]
+```
 """
 function smolyak_hessian(y::AbstractArray{T,1},plan::P) where {T<:AbstractFloat,P<:SApproximationPlan}
+
+  if plan.node_type == :clenshaw_curtis_equidistant
+    error("Not implemented for clenshaw_curtis_equidistant nodes")
+  end
 
   weights = smolyak_weights(y,plan.grid,plan.multi_index,plan.domain)
   
@@ -1285,12 +1630,33 @@ function smolyak_hessian(y::AbstractArray{T,1},plan::P) where {T<:AbstractFloat,
   return smolyak_hess
   
 end
-
 """
-Creates a function to compute the hessian of a Smolyak polynomial using multi-threading.
+Creates an interpolating function that uses multi-threading to compute the hessian of a Smolyak polynomial given the
+sampling points, ```y```, and the approximation ```plan```.  Returns an interpolating function.
+
+Signature
+=========
+
+hess = smolyak_hessian_threaded(y,plan)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> splan = smolyak_plan(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> hess = smolyak_hessian_threaded(y,splan)
+julia> hess([0.37,0.71])
+[-2.53475  1.06753
+  1.06753  0.199234]
+```
 """
 function smolyak_hessian_threaded(y::AbstractArray{T,1},plan::P) where {T<:AbstractFloat,P<:SApproximationPlan}
   
+  if plan.node_type == :clenshaw_curtis_equidistant
+    error("Not implemented for clenshaw_curtis_equidistant nodes")
+  end
+
   weights = smolyak_weights_threaded(y,plan.grid,plan.multi_index,plan.domain)
   
   function smolyak_hess(x::Array{R,1}) where {R<:Number}
@@ -1303,7 +1669,7 @@ function smolyak_hessian_threaded(y::AbstractArray{T,1},plan::P) where {T<:Abstr
   
 end
 
-function integrate_cheb_polys(order::S) where {S <: Integer}
+function integrate_cheb_polys(order::S) where {S <: Integer} # Internal function, not exported
 
   # Integrates Chebyshev polynomials over the domain [-1,1]
 
@@ -1321,25 +1687,60 @@ function integrate_cheb_polys(order::S) where {S <: Integer}
 
 end
 
+# Docstrings are done up to here.
+
 """
-Numerically integrates a Smolyak polynomial using either Clenshaw-Curtis or quadrature as methods.
+Numerically integrates a function, ```f```, over all dimensions by approximating the function with a Smolyak
+polynomial according to the approximation ```plan```, using either :clenshaw_curtis or gauss_Chebyshev_quad 
+as ```method```.  Returns a scalar.
+
+Signature
+=========
+
+integral = smolyak_integrate(f,plan,method)
+
+Example
+=======
+```
+julia> f(x) = sum(x.^2)
+julia> splan = smolyak_plan(chebyshev_extrema,4,8,[ones(1,4); zeros(1,4)])
+julia> integral = smolyak_integrate(f,splan,:clenshaw_curtis)
+1.3333333333333328
+julia> integral = smolyak_integrate(f,splan,:gauss_chebyshev_quad)
+1.3318637929187602
+```
 """
 function smolyak_integrate(f::Function,plan::SApproxPlan,method::Symbol)
 
-    if method == :clenshaw_curtis
-        integral = smolyak_clenshaw_curtis(f,plan)
-    elseif method == :gauss_chebyshev_quad
-        integral = smolyak_gauss_chebyshev_quad(f,plan)
-    else
-        error("Integration not implemented for that method")
-    end
+  if method == :clenshaw_curtis
+    integral = smolyak_clenshaw_curtis(f,plan)
+  elseif method == :gauss_chebyshev_quad
+    integral = smolyak_gauss_chebyshev_quad(f,plan)
+  else
+    error("Integration not implemented for that method")
+  end
 
-    return integral
+  return integral
 
 end
 
 """
-Numerically integrate a Smolyak polynomial using Clenshaw-Curtis.
+Uses the Clenshaw-Curtis method to numerically integrates a function, ```f```, over all dimensions by approximating
+the function with a Smolyak polynomial according to the approximation ```plan```.  Returns a scalar.
+
+Signature
+=========
+
+integral = smolyak_clenshaw_curtis(f,plan)
+
+Example
+=======
+```
+julia> f(x) = sum(x.^2)
+julia> splan = smolyak_plan(chebyshev_extrema,4,8,[ones(1,4); zeros(1,4)])
+julia> integral = smolyak_clenshaw_curtis(f,splan)
+1.3333333333333328
+```
 """
 function smolyak_clenshaw_curtis(f::Function,plan::SApproxPlan)
 
@@ -1407,9 +1808,24 @@ function smolyak_clenshaw_curtis(f::Function,plan::SApproxPlan)
   return evaluated_integral*scale_factor
 
 end
-
 """
-Numerically integrate a Smolyak polynomial using Clenshaw-Curtis.
+Uses the Clenshaw-Curtis method to numerically integrates a function, ```f```, over all dimensions except ```pos```
+by approximating the function with a Smolyak polynomial according to the approximation ```plan```.  Returns a function.
+
+Signature
+=========
+
+integral = smolyak_clenshaw_curtis(f,plan,pos)
+
+Example
+=======
+```
+julia> f(x) = sum(x.^2)
+julia> splan = smolyak_plan(chebyshev_extrema,4,8,[ones(1,4); zeros(1,4)])
+julia> integral = smolyak_clenshaw_curtis(f,splan,4)
+julia> integral(0.5)
+1.2499999999999996
+```
 """
 function smolyak_clenshaw_curtis(f::Function,plan::SApproxPlan,pos::S) where {S<:Integer}
 
@@ -1502,7 +1918,22 @@ function smolyak_clenshaw_curtis(f::Function,plan::SApproxPlan,pos::S) where {S<
 end
 
 """
-Numerically integrate a Smolyak polynomial using quadrature.
+Uses Gauss-Chebyshev quadrature to numerically integrates a function, ```f```, over all dimensions by approximating
+the function with a Smolyak polynomial according to the approximation ```plan```.  Returns a scalar.
+
+Signature
+=========
+
+integral = smolyak_gauss_chebyshev_quad(f,plan)
+
+Example
+=======
+```
+julia> f(x) = sum(x.^2)
+julia> splan = smolyak_plan(chebyshev_extrema,4,8,[ones(1,4); zeros(1,4)])
+julia> integral = smolyak_gauss_chebyshev_quad(f,splan)
+1.3318637929187602
+```
 """
 function smolyak_gauss_chebyshev_quad(f::Function,plan::SApproxPlan)
 
@@ -1534,7 +1965,7 @@ function smolyak_gauss_chebyshev_quad(f::Function,plan::SApproxPlan)
     scale_factor = scale_factor*(domain[1,i]-domain[2,i])/2
   end
 
-  return (w*y)[1]*scale_factor
+  return (w*y)[1] * scale_factor
 
 end
 
@@ -1542,9 +1973,25 @@ end
 ########################################################################
 
 """
-Constructs the Smolyak grid including repeated grid points.
+Uses the ```node_type``` function to construct the ```d```-dimensional full Smolyak grid with approximation layer
+```mu``` and ```domain```.  If ```domain``` is not provided, then the approximation domain defaults to [1.0,-1.0]^d.
+Returns the full Smolyak grid and the associated multi index.
+
+Signature
+=========
+
+full_grid, mi = smolyak_grid_full(chebyshev_extrema,d,mu,domain)
+
+Examples
+========
+```
+julia> full_grid, mi = smolyak_grid_full(chebyshev_extrema,2,2)
+julia> full_grid, mi = smolyak_grid_full(chebyshev_extrema,2,[2,1])
+julia> full_grid, mi = smolyak_grid_full(chebyshev_extrema,2,2,[3.0 1.5; 2.0 0.5])
+julia> full_grid, mi = smolyak_grid_full(chebyshev_extrema,2,[2,2],[3.0 1.5; 2.0 0.5])
+```
 """
-function smolyak_grid_full(node_type::Function,d::S,mu::S) where {S<:Integer}
+function smolyak_grid_full(node_type::Function,d::S,mu::S,domain=[ones(1,d);-ones(1,d)]) where {S<:Integer}
 
   T = typeof(1.0)
 
@@ -1586,28 +2033,13 @@ function smolyak_grid_full(node_type::Function,d::S,mu::S) where {S<:Integer}
     l += m
   end
 
-  return nodes, multi_index_full
-
-end
-
-"""
-Constructs the Smolyak grid including repeated grid points.
-"""
-function smolyak_grid_full(node_type::Function,d::S,mu::S,domain::Union{Array{T,1},Array{T,2}}) where {S<:Integer, T<:AbstractFloat}
-
-  if size(domain,2) != d
-    error("domain is inconsistent with the number of dimensions")
-  end
-
-  nodes, multi_index_full = smolyak_grid_full(node_type,d,mu)
-
-  nodes = scale_nodes(nodes,domain)
+  scale_nodes!(nodes,domain)
 
   return nodes, multi_index_full
 
 end
 
-function determine_grid_size_full(mi)
+function determine_grid_size_full(mi::Array{S,2}) where {S<:Integer} # Internal function, not exported
 
   temp = similar(mi)
 
@@ -1634,6 +2066,27 @@ function determine_grid_size_full(mi)
 
 end
 
+"""
+Creates the master_index from a ```multi_index```.  Returns a matrix of integers.
+
+Signature
+=========
+
+master_i = master_index(multi_index)
+
+Example
+=======
+```
+julia> mi = generate_multi_index(2,2)
+julia> master_i = master_index(mi)
+[ 1  1
+  2  3
+  5  5
+ 10  3
+ 13  9
+ 22  5]
+```
+"""
 function master_index(multi_index::Array{S,2}) where {S<:Integer}
 
   temp_ind   = similar(multi_index)
@@ -1659,7 +2112,7 @@ function master_index(multi_index::Array{S,2}) where {S<:Integer}
 
 end
 
-function cheb_poly(order::S,x::R) where {S<:Integer,R<:Number}
+function cheb_poly(order::S,x::R) where {S<:Integer,R<:Number} # Internal function, not exported
 
   p  = one(R)
   p1 = zero(R)
@@ -1678,7 +2131,7 @@ function cheb_poly(order::S,x::R) where {S<:Integer,R<:Number}
 
 end
 
-function prod_cjs(max_grid::Union{Array{T,1},Array{T,2}},min_grid::Union{Array{T,1},Array{T,2}},poly_grid::Array{T,2}) where {T<:AbstractFloat}
+function prod_cjs(max_grid::Union{Array{T,1},Array{T,2}},min_grid::Union{Array{T,1},Array{T,2}},poly_grid::Array{T,2}) where {T<:AbstractFloat} # Internal function, not exported
 
   cjs = ones(size(poly_grid))
 
@@ -1694,7 +2147,7 @@ function prod_cjs(max_grid::Union{Array{T,1},Array{T,2}},min_grid::Union{Array{T
 
 end
 
-function compute_scale_factor(multi_index::Array{S,1}) where {S<:Integer}
+function compute_scale_factor(multi_index::Array{S,1}) where {S<:Integer} # Internal function, not exported
 
   scale_factor = 1.0
 
@@ -1709,9 +2162,35 @@ function compute_scale_factor(multi_index::Array{S,1}) where {S<:Integer}
 end
 
 """
-Computes the weights in a Smolyak polynomial indluding repeated grid points.
+Uses Chebyshev polynomials as basis functions to compute the weights in a full Smolyak polynomial approximation given the
+approximation sample, ```y```, the approximation ```grid```, the ```multi_index```, and the approximation 
+```domain``` (defaults to [1.0,-1.0]^d).  Returns a vector of vectors containing the weights in the Smolyak polynomial.
+
+Signature
+=========
+
+w = smolyak_weights_full(y,grid,multi_index,domain)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid_full(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> f(x) = sum(x.^2)
+julia> y = [f(g[i,:]) for i in axes(g,1)]
+julia> w = smolyak_weights_full(y,g,mi,[1.0 1.0; 0.0 0.0])
+[[-0.625, -0.5, -0.125]
+ [0.625, 0.49999999999999994, 0.12499999999999992, -1.6653345369377348e-16, 2.7755575615628914e-17]
+ [-0.625, -0.5, -0.125]
+ [0.75, 0.5, 0.125, 0.5, 0.0, 0.0, 0.125, 0.0, 0.0]
+ [0.625, 0.49999999999999994, 0.12499999999999992, -1.6653345369377348e-16, 2.7755575615628914e-17]]
+```
 """
-function smolyak_weights_full(y_f::Array{T,1},grid::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2}) where {S<:Integer, T<:AbstractFloat}
+function smolyak_weights_full(y_f::Array{T,1},grid::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {S<:Integer, T<:AbstractFloat}
+
+  grid = copy(grid)
+  for i in axes(grid,2)
+    grid[:,i] = normalize_node(grid[:,i],domain[:,i])
+  end
 
   mi = sum(multi_index,dims=2)
   d  = size(multi_index,2)
@@ -1752,28 +2231,32 @@ function smolyak_weights_full(y_f::Array{T,1},grid::Union{Array{T,1},Array{T,2}}
 end
 
 """
-Computes the weights in a Smolyak polynomial including repeated grid points.
+Evaluates a full Smolyak polynomial formed using Chebyshev basis functions, given the ```weights```, the ```point``` at
+which to evaluate the polynomial, the ```multi_index```, and the approximation ```domain``` (defaults to [1.0,-1.0]^d).
+Returns a scalar.
+
+Signature
+=========
+
+yhat = smolyak_evaluate_full(weights,point,multi_index,domain)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid_full(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> w = smolyak_weights_full(y,g,mi,[1.0 1.0; 0.0 0.0])
+julia> yhat = smolyak_evaluate_full(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
+0.5953026581237829
+```
 """
-function smolyak_weights_full(y_f::Array{T,1},grid::Union{Array{T,1},Array{T,2}},multi_index::Array{S,2},domain::Array{T,2}) where {S<:Integer, T<:AbstractFloat}
+function smolyak_evaluate_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {S<:Integer,R<:Number,T<:AbstractFloat}
 
   d = size(multi_index,2)
-  grid = copy(grid)
-  for i = 1:d
-    grid[:,i] = normalize_node(grid[:,i],domain[:,i])
+  point = copy(point)
+  for i in eachindex(point)
+    point[i] = normalize_node(point[i],domain[:,i])
   end
-
-  weights = smolyak_weights_full(y_f,grid,multi_index)
-
-  return weights
-
-end
-
-"""
-Evaluates a Smolyak polynomial including repeated grid points.
-"""
-function smolyak_evaluate_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2}) where {S<:Integer,R<:Number,T<:AbstractFloat}
-
-  d = size(multi_index,2)
 
   evaluated_polynomials = zeros(size(multi_index,1))
 
@@ -1793,24 +2276,7 @@ function smolyak_evaluate_full(weights::Array{Array{T,1},1},point::Array{R,1},mu
 
 end
 
-"""
-Evaluates a Smolyak polynomial including repeated grid points.
-"""
-function smolyak_evaluate_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2},domain::Array{T,2}) where {S<:Integer,R<:Number,T<:AbstractFloat}
-
-  d = size(multi_index,2)
-  point = copy(point)
-  for i = 1:d
-    point[i] = normalize_node(point[i],domain[:,i])
-  end
-
-  estimate = smolyak_evaluate_full(weights,point,multi_index)
-
-  return estimate
-
-end
-
-function deriv_cheb_poly(order::S,x::R) where {S<:Integer,R<:Number}
+function deriv_cheb_poly(order::S,x::R) where {S<:Integer,R<:Number} # Internal function, not exported
 
   p0 = one(R)
   p1 = zero(R)
@@ -1835,10 +2301,7 @@ function deriv_cheb_poly(order::S,x::R) where {S<:Integer,R<:Number}
 
 end
 
-"""
-Computes a derivative of a Smolyak polynomial including repeated grid points.
-"""
-function smolyak_derivative_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2},pos::S) where {S<:Integer,R<:Number,T<:AbstractFloat}
+function _smolyak_derivative_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2},pos::S) where {S<:Integer,R<:Number,T<:AbstractFloat} # Internal function, not exported
 
   mi = sum(multi_index,dims=2)
   d  = size(multi_index,2)
@@ -1873,7 +2336,27 @@ function smolyak_derivative_full(weights::Array{Array{T,1},1},point::Array{R,1},
 end
 
 """
-Computes a derivative of a Smolyak polynomial including repeated grid points.
+Computes the partial derivative of a full Smolyak polynomial formed using Chebyshev basis functions, given the 
+```weights```, the ```point``` at which to evaluate the polynomial, the ```multi_index```, the approximation 
+```domain```, and the index of the variable to differentiate with respect to, ```pos```.
+Returns a scalar.
+
+Signature
+=========
+
+deriv = smolyak_derivative_full(weights,point,multi_index,domain,pos)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid_full(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> w = smolyak_weights_full(y,g,mi,[1.0 1.0; 0.0 0.0])
+julia> deriv1 = smolyak_derivative_full(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0],1)
+0.4036816953853277
+julia> deriv2 = smolyak_derivative_full(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0],2)
+0.5250627466157655
+```
 """
 function smolyak_derivative_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2},domain::Array{T,2},pos::S) where {S<:Integer,R<:Number,T<:AbstractFloat}
 
@@ -1883,30 +2366,31 @@ function smolyak_derivative_full(weights::Array{Array{T,1},1},point::Array{R,1},
     point[i] = normalize_node(point[i],domain[:,i])
   end
 
-  evaluated_derivative = smolyak_derivative_full(weights,point,multi_index,pos)
+  evaluated_derivative = _smolyak_derivative_full(weights,point,multi_index,pos)*(2.0/(domain[1,pos]-domain[2,pos]))
 
   return evaluated_derivative
 
 end
 
 """
-Computes the gradient of a Smolyak polynomial including repeated grid points.
-"""
-function smolyak_gradient_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2}) where {S<:Integer,R<:Number,T<:AbstractFloat}
+Computes the gradient a full Smolyak polynomial formed using Chebyshev basis functions, given the ```weights```, the
+```point``` at which to evaluate the polynomial, the ```multi_index```, and the approximation ```domain```.  
+Returns a one-row matrix.
 
-  d = size(multi_index,2)
+Signature
+=========
 
-  gradient = Array{R,2}(undef,1,d)
-  for i = 1:d
-    gradient[i] = smolyak_derivative_full(weights,point,multi_index,i)
-  end
+grad = smolyak_gradient(weights,point,multi_index,domain)
 
-  return gradient
-
-end
-
-"""
-Computes the gradient of a Smolyak polynomial including repeated grid points.
+Example
+=======
+```
+julia> g,mi = smolyak_grid_full(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> w = smolyak_weights_full(y,g,mi,[1.0 1.0; 0.0 0.0])
+julia> grad = smolyak_gradient_full(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
+[0.403682  0.525063]
+```
 """
 function smolyak_gradient_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2},domain::Array{T,2}) where {S<:Integer,R<:Number,T<:AbstractFloat}
 
@@ -1918,111 +2402,5 @@ function smolyak_gradient_full(weights::Array{Array{T,1},1},point::Array{R,1},mu
   end
 
   return gradient
-
-end
-
-###########################################################################
-
-"""
-Creates a function that evaluates a Smolyak polynomial with repeated grid points.
-"""
-function smolyak_evaluate_full(weights::Array{Array{T,1},1},multi_index_full::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
-
-  function goo(x::Array{R,1}) where {R<:Number}
-
-    return smolyak_evaluate_full(weights,x,multi_index_full)
-
-  end
-
-  return goo
-
-end
-
-"""
-Creates a function that evaluates a Smolyak polynomial with repeated grid points.
-"""
-function smolyak_evaluate_full(weights::Array{Array{T,1},1},multi_index_full::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
-
-  function goo(x::Array{R,1}) where {R<:Number}
-
-    return smolyak_evaluate_full(weights,x,multi_index_full,domain)
-
-  end
-
-  return goo
-
-end
-
-"""
-Creates a function that computes a derivative of a Smolyak polynomial with repeated grid points.
-"""
-function smolyak_derivative_full(weights::Array{Array{T,1},1},multi_index_full::Array{S,2},pos::S) where {T<:AbstractFloat,S<:Integer}
-
-  function goo(x::Array{R,1}) where {R<:Number}
-
-    return smolyak_derivative_full(weights,x,multi_index_full,pos)
-
-  end
-
-  return goo
-
-end
-
-"""
-Creates a function that computes a derivative of a Smolyak polynomial with repeated grid points.
-"""
-function smolyak_derivative_full(weights::Array{Array{T,1},1},multi_index_full::Array{S,2},domain::Union{Array{T,1},Array{T,2}},pos::S) where {T<:AbstractFloat,S<:Integer}
-
-  function goo(x::Array{R,1}) where {R<:Number}
-
-    return smolyak_derivative_full(weights,x,multi_index_full,domain,pos)
-
-  end
-
-  return goo
-
-end
-
-"""
-Creates a function that computes the gradient of a Smolyak polynomial with repeated grid points.
-"""
-function smolyak_gradient_full(weights::Array{Array{T,1},1},multi_index_full::Array{S,2}) where {T<:AbstractFloat,S<:Integer}
-
-  function goo(point::Array{R,1}) where {R<:Number}
-
-    d = length(x)
-
-    gradient = Array{T,2}(undef,1,d)
-    for i = 1:d
-      gradient[i] = smolyak_derivative_full(weights,point,multi_index_full,i)
-    end
-
-    return gradient
-
-  end
-
-  return goo
-
-end
-
-"""
-Creates a function that computes the gradient of a Smolyak polynomial with repeated grid points.
-"""
-function smolyak_gradient_full(weights::Array{Array{T,1},1},multi_index_full::Array{S,2},domain::Union{Array{T,1},Array{T,2}}) where {T<:AbstractFloat,S<:Integer}
-
-  function goo(point::Array{R,1}) where {R<:Number}
-
-    d = length(x)
-
-    gradient = Array{T,2}(undef,1,d)
-    for i = 1:d
-      gradient[i] = smolyak_derivative_full(weights,point,multi_index_full,domain,i)
-    end
-
-    return gradient
-
-  end
-
-  return goo
 
 end

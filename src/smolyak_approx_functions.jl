@@ -320,6 +320,35 @@ function scale_nodes!(nodes::Array{R,2},domain::Array{T,2}) where {T<:AbstractFl
 end
 
 """
+Ensures the approximation domain has the expected form.
+
+Signatures
+==========
+
+domain = check_domain(dom)
+
+Example
+=======
+
+```
+julia> dom = [-1.0 2.0; 2.0 -1.0]
+julia> domain = check_domain(dom)
+```
+"""
+function check_domain(dom::Array{T,2}) where {T<:AbstractFloat}
+
+  domain = similar(dom)
+
+  for i in axes(dom,2)
+    domain[1,i] = max(dom[1,i],dom[2,i])
+    domain[2,i] = min(dom[1,i],dom[2,i])
+  end
+
+  return domain
+
+end
+
+"""
 Uses the ```node_type``` function to construt the ```d```-dimensional Smolyak grid with approximation layer
 ```mu``` and ```domain```.  If ```mu``` is an integer (vector of integers) the isotropic (ansiotropic) grid is
 constructed.  Returns the approximation grid and the associated multi-index.  If ```domain``` is not provided,

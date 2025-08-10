@@ -500,7 +500,7 @@ julia> w = smolyak_weights(y,g,mi,[1.0 1.0; 0.0 0.0])
 """
 function smolyak_weights(y::Array{T,1},grid::Array{T,2},multi_index::Array{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
 
-  dom = check_domain(d,domain)
+  dom = check_domain(size(multi_index,2),domain)
 
   # Normalize grid to the [1.0,-1.0]^d interval
 
@@ -583,7 +583,7 @@ julia> w = smolyak_weights_threaded(y,g,mi,[1.0 1.0; 0.0 0.0])
 """
 function smolyak_weights_threaded(y::Array{T,1},grid::Array{T,2},multi_index::Array{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
 
-  dom = check_domain(d,domain)
+  dom = check_domain(size(multi_index,2),domain)
 
   # Normalize grid to the [1.0,-1.0]^d interval
 
@@ -691,7 +691,7 @@ julia> iim = smolyak_inverse_interpolation_matrix(g,mi)
 """
 function smolyak_inverse_interpolation_matrix(grid::Array{T,2},multi_index::Array{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
 
-  dom = check_domain(d,domain)
+  dom = check_domain(size(multi_index,2),domain)
 
   # Normalize grid to the [1.0,-1.0]^d interval
   
@@ -771,7 +771,7 @@ julia> iim = smolyak_inverse_interpolation_matrix_threaded(g,mi)
 """
 function smolyak_inverse_interpolation_matrix_threaded(grid::Array{T,2},multi_index::Array{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
 
-  dom = check_domain(d,domain)
+  dom = check_domain(size(multi_index,2),domain)
 
   # Normalize grid to the [1.0,-1.0]^d interval
     
@@ -854,7 +854,7 @@ julia> w = smolyak_pl_weights(y,g,mi,[1.0 1.0; 0.0 0.0])
 """
 function smolyak_pl_weights(y::AbstractArray{T,1},grid::Array{T,2},multi_index::Array{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
 
-  dom = check_domain(d,domain)
+  dom = check_domain(size(multi_index,2),domain)
 
   # Normalize grid to the [1.0,-1.0]^d interval
     
@@ -927,7 +927,7 @@ julia> w = smolyak_pl_weights_threaded(y,g,mi,[1.0 1.0; 0.0 0.0])
 """
 function smolyak_pl_weights_threaded(y::AbstractArray{T,1},grid::Array{T,2},multi_index::Array{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
 
-  dom = check_domain(d,domain)
+  dom = check_domain(size(multi_index,2),domain)
 
   # Normalize grid to the [1.0,-1.0]^d interval
       
@@ -997,7 +997,7 @@ julia> spoly = smolyak_polynomial(point,mi,[1.0 1.0; 0.0 0.0])
 """
 function smolyak_polynomial(point::AbstractArray{R,1},multi_index::Array{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {R<:Number,S<:Integer}
 
-  dom = check_domain(d,domain)
+  dom = check_domain(size(multi_index,2),domain)
 
   # Normalize grid to the [1.0,-1.0]^d interval
       
@@ -1074,7 +1074,7 @@ julia> yhat = smolyak_evaluate(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
 """
 function smolyak_evaluate(weights::Array{T,1},point::AbstractArray{R,1},multi_index::Array{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
-  dom = check_domain(d,domain)
+  dom = check_domain(size(multi_index,2),domain)
 
   # Normalize point to the [1.0,-1.0]^d interval
 
@@ -1184,7 +1184,7 @@ julia> yhat = smolyak_pl_evaluate(w,[0.37,0.71],g,mi,[1.0 1.0; 0.0 0.0])
 """
 function smolyak_pl_evaluate(weights::Array{T,1},point::Array{R,1},grid::Array{T,2},multi_index::Array{S,2},domain=[ones(1,length(point)); -ones(1,length(point))]) where {T<:AbstractFloat,R<:Number,S<:Integer}
 
-  dom = check_domain(d,domain)
+  dom = check_domain(size(multi_index,2),domain)
 
   grid  = copy(grid)
   point = copy(point)

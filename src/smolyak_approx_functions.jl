@@ -299,6 +299,14 @@ function combine_nodes(nodes1::Union{Array{R,1},Array{R,2}},nodes2::Array{R,1}) 
 
 end
 
+function scale_nodes!(nodes::Array{R,1},domain::Array{T,1}) where {T<:AbstractFloat,R<:Number} # Internal function, not exported
+
+  @inbounds for i in eachindex(nodes)
+    nodes[i] = domain[2] + (1.0+nodes[i])*(domain[1]-domain[2])*0.5
+  end
+
+end
+
 function scale_nodes!(nodes::Array{R,2},domain::Array{T,2}) where {T<:AbstractFloat,R<:Number} # Internal function, not exported
 
   @inbounds for i in CartesianIndices(nodes)

@@ -5,7 +5,7 @@ SApproxPlan is an immutable struct that contains the information used to approxi
 SApproxPlan has four fileds: A node type that describes how the approximating points are generated, the approximation
 grid, the multi-index associated with the Smolyak polynomial, and the approximation domain.
 """ 
-struct SApproxPlan{S<:Integer,T<:AbstractFloat} <: SApproximationPlan
+struct SApproxPlan{S<:Integer,T<:Real} <: SApproximationPlan
 
   node_type::Symbol
   grid::Array{T,2}
@@ -175,7 +175,7 @@ julia> m_index = generate_multi_index(2,[2,1])
  2  2]
  ```
 """
-function generate_multi_index(d::S,mu::Array{S,1}) where {S<:Integer}
+function generate_multi_index(d::S,mu::AbstractArray{S,1}) where {S<:Integer}
 
   nt = num_terms(mu,d)
   multi_index = Array{S,2}(undef,nt,d) # allocates
@@ -264,7 +264,7 @@ end
 
 # Poorly approximates the number of terms in the multi-index for the ansiotropic case.
 
-function num_terms(order::Array{S,1},d::S) where {S<:Integer} # Internal function, not exported
+function num_terms(order::AbstractArray{S,1},d::S) where {S<:Integer} # Internal function, not exported
 
   max_mu = maximum(order)
   nt = num_terms(max_mu,d) # Deliberate over-estimate of the number of terms
@@ -276,7 +276,7 @@ end
 m_i(x::S) where {S <: Integer} = (x == 1 ? 1 : 2^(x-1) + 1) # Internal function, not exported
 m_i(x::Array{S,N}) where {S <: Integer,N} = m_i.(x) # Internal function not exported
 
-function combine_nodes(nodes1::Union{Array{R,1},Array{R,2}},nodes2::Array{R,1}) where {R<:Number} # Internal function, not exported
+function combine_nodes(nodes1::Union{AbstractArray{R,1},AbstractArray{R,2}},nodes2::AbstractArray{R,1}) where {R<:Real} # Internal function, not exported
   
   # nodes1 can be a 1d or 2d array; nodes2 is a 1d array
 
@@ -299,7 +299,7 @@ function combine_nodes(nodes1::Union{Array{R,1},Array{R,2}},nodes2::Array{R,1}) 
 
 end
 
-function scale_nodes!(nodes::Array{R,1},domain::Array{T,1}) where {T<:AbstractFloat,R<:Number} # Internal function, not exported
+function scale_nodes!(nodes::AbstractArray{R,1},domain::AbstractArray{T,1}) where {T<:Real,R<:Real} # Internal function, not exported
 
   @inbounds for i in eachindex(nodes)
     nodes[i] = domain[2] + (1.0+nodes[i])*(domain[1]-domain[2])*0.5
@@ -307,7 +307,7 @@ function scale_nodes!(nodes::Array{R,1},domain::Array{T,1}) where {T<:AbstractFl
 
 end
 
-function scale_nodes!(nodes::Array{R,2},domain::Array{T,2}) where {T<:AbstractFloat,R<:Number} # Internal function, not exported
+function scale_nodes!(nodes::AbstractArray{R,2},domain::AbstractArray{T,2}) where {T<:Real,R<:Real} # Internal function, not exported
 
   @inbounds for i in CartesianIndices(nodes)
     nodes[i] = domain[2,i[2]] + (1.0+nodes[i])*(domain[1,i[2]]-domain[2,i[2]])*0.5
@@ -331,7 +331,7 @@ julia> dom = [-1.0 2.0; 2.0 -1.0]
 julia> domain = check_domain(dom)
 ```
 """
-function check_domain(d::S,domain::Union{Array{T,1},Array{T,2}}) where {S<:Integer, T<:AbstractFloat}
+function check_domain(d::S,domain::Union{AbstractArray{T,1},AbstractArray{T,2}}) where {S<:Integer,T<:Real}
 
   if ndims(domain) == 1 # domain is a vector, so convert to a matrix
     dom = reshape(domain,2,1)
@@ -376,7 +376,7 @@ julia> grid, m_index = smolyak_grid(chebyshev_extrema,2,2,[3.0 1.5; 2.0 0.5])
 julia> grid, m_index = smolyak_grid(chebyshev_extrema,2,[2,2],[3.0 1.5; 2.0 0.5])
 ```
 """
-function smolyak_grid(node_type::Function,d::S,mu::Union{S,Array{S,1}},domain=[ones(1, d); -ones(1, d)]) where {S<:Integer}
+function smolyak_grid(node_type::Function,d::S,mu::Union{S,AbstractArray{S,1}},domain=[ones(1, d); -ones(1, d)]) where {S<:Integer}
 
   dom = check_domain(d,domain)
 
@@ -474,7 +474,7 @@ julia> splan = smolyak_plan(chebyshev_extrema,2,2,[3.0 1.5; 2.0 0.5])
 julia> splan = smolyak_plan(clenshaw_curtis_equidistant,2,[2,2],[3.0 1.5; 2.0 0.5])
 ```
 """
-function smolyak_plan(node_type::Function,d::S,mu::Union{S,Array{S,1}},domain=[ones(1, d); -ones(1, d)]) where {S<:Integer}
+function smolyak_plan(node_type::Function,d::S,mu::Union{S,AbstractArray{S,1}},domain=[ones(1, d); -ones(1, d)]) where {S<:Integer}
 
   dom = check_domain(d,domain)
 
@@ -506,7 +506,7 @@ julia> y = [f(g[i,:]) for i in axes(g,1)]
 julia> w = smolyak_weights(y,g,mi,[1.0 1.0; 0.0 0.0])
 ```
 """
-function smolyak_weights(y::Array{T,1},grid::Array{T,2},multi_index::Array{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
+function smolyak_weights(y::AbstractArray{T,1},grid::AbstractArray{T,2},multi_index::AbstractArray{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -589,7 +589,7 @@ julia> y = [f(g[i,:]) for i in axes(g,1)]
 julia> w = smolyak_weights_threaded(y,g,mi,[1.0 1.0; 0.0 0.0])
 ```
 """
-function smolyak_weights_threaded(y::Array{T,1},grid::Array{T,2},multi_index::Array{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
+function smolyak_weights_threaded(y::AbstractArray{T,1},grid::AbstractArray{T,2},multi_index::AbstractArray{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -671,7 +671,7 @@ julia> iim = smolyak_inverse_interpolation_matrix(g,mi)
 julia> w = smolyak_weights(y,iim)
 ```
 """
-function smolyak_weights(y::Array{T,1},inverse_interpolation_matrix::Array{T,2}) where {T<:AbstractFloat}
+function smolyak_weights(y::AbstractArray{T,1},inverse_interpolation_matrix::AbstractArray{T,2}) where {T<:Real}
 
   weights = inverse_interpolation_matrix*y
 
@@ -697,7 +697,7 @@ julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
 julia> iim = smolyak_inverse_interpolation_matrix(g,mi)
 ```
 """
-function smolyak_inverse_interpolation_matrix(grid::Array{T,2},multi_index::Array{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
+function smolyak_inverse_interpolation_matrix(grid::AbstractArray{T,2},multi_index::AbstractArray{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -777,7 +777,7 @@ julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
 julia> iim = smolyak_inverse_interpolation_matrix_threaded(g,mi)
 ```
 """
-function smolyak_inverse_interpolation_matrix_threaded(grid::Array{T,2},multi_index::Array{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
+function smolyak_inverse_interpolation_matrix_threaded(grid::AbstractArray{T,2},multi_index::AbstractArray{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -860,7 +860,7 @@ julia> y = [f(g[i,:]) for i in axes(g,1)]
 julia> w = smolyak_pl_weights(y,g,mi,[1.0 1.0; 0.0 0.0])
 ```
 """
-function smolyak_pl_weights(y::AbstractArray{T,1},grid::Array{T,2},multi_index::Array{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
+function smolyak_pl_weights(y::AbstractArray{T,1},grid::AbstractArray{T,2},multi_index::AbstractArray{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -933,7 +933,7 @@ julia> y = [f(g[i,:]) for i in axes(g,1)]
 julia> w = smolyak_pl_weights_threaded(y,g,mi,[1.0 1.0; 0.0 0.0])
 ```
 """
-function smolyak_pl_weights_threaded(y::AbstractArray{T,1},grid::Array{T,2},multi_index::Array{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:AbstractFloat,S<:Integer}
+function smolyak_pl_weights_threaded(y::AbstractArray{T,1},grid::AbstractArray{T,2},multi_index::AbstractArray{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -1003,7 +1003,7 @@ julia> point = g[5,:]
 julia> spoly = smolyak_polynomial(point,mi,[1.0 1.0; 0.0 0.0])
 ```
 """
-function smolyak_polynomial(point::AbstractArray{R,1},multi_index::Array{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {R<:Number,S<:Integer}
+function smolyak_polynomial(point::AbstractArray{R,1},multi_index::AbstractArray{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {R<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -1080,7 +1080,7 @@ julia> yhat = smolyak_evaluate(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
 0.5953026581237828
 ```
 """
-function smolyak_evaluate(weights::Array{T,1},point::AbstractArray{R,1},multi_index::Array{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {T<:AbstractFloat,R<:Number,S<:Integer}
+function smolyak_evaluate(weights::AbstractArray{T,1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {T<:Real,R<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -1161,7 +1161,7 @@ julia> yhat = smolyak_evaluate(w,p)
 0.5953026581237828
 ```
 """
-function smolyak_evaluate(weights::Array{T,1},polynomial::Array{R,1}) where {T<:AbstractFloat,R<:Number}
+function smolyak_evaluate(weights::AbstractArray{T,1},polynomial::AbstractArray{R,1}) where {T<:Real,R<:Real}
 
   estimate = weights'polynomial
   
@@ -1190,7 +1190,7 @@ julia> yhat = smolyak_pl_evaluate(w,[0.37,0.71],g,mi,[1.0 1.0; 0.0 0.0])
 0.5549321821467206
 ```
 """
-function smolyak_pl_evaluate(weights::Array{T,1},point::Array{R,1},grid::Array{T,2},multi_index::Array{S,2},domain=[ones(1,length(point)); -ones(1,length(point))]) where {T<:AbstractFloat,R<:Number,S<:Integer}
+function smolyak_pl_evaluate(weights::AbstractArray{T,1},point::AbstractArray{R,1},grid::AbstractArray{T,2},multi_index::AbstractArray{S,2},domain=[ones(1,length(point)); -ones(1,length(point))]) where {T<:Real,R<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -1268,7 +1268,7 @@ julia> f([0.37,0.71])
 0.5549321821467206
 ```
 """
-function smolyak_interp(y::Array{T,1},plan::P) where {T<:AbstractFloat,P<:SApproximationPlan}
+function smolyak_interp(y::AbstractArray{T,1},plan::P) where {T<:Real,P<:SApproximationPlan}
 
   if plan.node_type == :chebyshev_extrema || plan.node_type == :chebyshev_gauss_lobatto
     weights = smolyak_weights(y,plan.grid,plan.multi_index,plan.domain)
@@ -1276,7 +1276,7 @@ function smolyak_interp(y::Array{T,1},plan::P) where {T<:AbstractFloat,P<:SAppro
     weights = smolyak_pl_weights(y,plan.grid,plan.multi_index,plan.domain)
   end
 
-  function interp(x::Array{R,1}) where {R<:Number}
+  function interp(x::AbstractArray{R,1}) where {R<:Real}
 
     if plan.node_type == :chebyshev_extrema || plan.node_type == :chebyshev_gauss_lobatto
       return smolyak_evaluate(weights,x,plan.multi_index,plan.domain)
@@ -1317,7 +1317,7 @@ julia> f([0.37,0.71])
 0.5549321821467206
 ```
 """
-function smolyak_interp_threaded(y::Array{T,1},plan::P) where {T<:AbstractFloat,P<:SApproximationPlan}
+function smolyak_interp_threaded(y::AbstractArray{T,1},plan::P) where {T<:Real,P<:SApproximationPlan}
 
   if plan.node_type == :chebyshev_extrema || plan.node_type == :chebyshev_gauss_lobatto
     weights = smolyak_weights_threaded(y,plan.grid,plan.multi_index,plan.domain)
@@ -1325,7 +1325,7 @@ function smolyak_interp_threaded(y::Array{T,1},plan::P) where {T<:AbstractFloat,
     weights = smolyak_pl_weights_threaded(y,plan.grid,plan.multi_index,plan.domain)
   end
 
-  function interp(x::Array{R,1}) where {R<:Number}
+  function interp(x::AbstractArray{R,1}) where {R<:Real}
 
     if plan.node_type == :chebyshev_extrema || plan.node_type == :chebyshev_gauss_lobatto
       return smolyak_evaluate(weights,x,plan.multi_index,plan.domain)
@@ -1339,7 +1339,7 @@ function smolyak_interp_threaded(y::Array{T,1},plan::P) where {T<:AbstractFloat,
 
 end
 
-function _smolyak_derivative(weights::Array{T,1},point::Array{R,1},multi_index::Array{S,2},pos::S) where {T<:AbstractFloat,R<:Number,S<:Integer} # Internal function, not exported
+function _smolyak_derivative(weights::AbstractArray{T,1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},pos::S) where {T<:Real,R<:Real,S<:Integer} # Internal function, not exported
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders = m_i.(unique_multi_index) .- 1
@@ -1422,7 +1422,7 @@ julia> deriv2 = smolyak_derivative(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0],2)
 0.5250627466157657
 ```
 """
-function smolyak_derivative(weights::Array{T,1},point::Array{R,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}},pos::S) where {T<:AbstractFloat,R<:Number,S<:Integer}
+function smolyak_derivative(weights::AbstractArray{T,1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},domain::Union{AbstractArray{T,1},AbstractArray{T,2}},pos::S) where {T<:Real,R<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -1459,7 +1459,7 @@ julia> grad = smolyak_gradient(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
 [0.403682  0.525063]
 ```
 """
-function smolyak_gradient(weights::Array{T,1},point::Array{R,1},multi_index::Array{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {T<:AbstractFloat,R<:Number,S<:Integer}
+function smolyak_gradient(weights::AbstractArray{T,1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {T<:Real,R<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -1494,7 +1494,7 @@ julia> grad([0.37,0.71])
 [0.403682  0.525063]
 ```
 """
-function smolyak_gradient(y::AbstractArray{T,1},plan::P) where {T<:AbstractFloat,P<:SApproximationPlan}
+function smolyak_gradient(y::AbstractArray{T,1},plan::P) where {T<:Real,P<:SApproximationPlan}
 
   if plan.node_type == :clenshaw_curtis_equidistant
     error("Not implemented for clenshaw_curtis_equidistant nodes")
@@ -1502,7 +1502,7 @@ function smolyak_gradient(y::AbstractArray{T,1},plan::P) where {T<:AbstractFloat
 
   weights = smolyak_weights(y,plan.grid,plan.multi_index,plan.domain)
   
-  function smolyak_grad(x::Array{R,1}) where {R<:Number}
+  function smolyak_grad(x::AbstractArray{R,1}) where {R<:Real}
   
     return smolyak_gradient(weights,x,plan.multi_index,plan.domain)
   
@@ -1532,7 +1532,7 @@ julia> grad([0.37,0.71])
 [0.403682  0.525063]
 ```
 """
-function smolyak_gradient_threaded(y::AbstractArray{T,1},plan::P) where {T<:AbstractFloat,P<:SApproximationPlan}
+function smolyak_gradient_threaded(y::AbstractArray{T,1},plan::P) where {T<:Real,P<:SApproximationPlan}
   
   if plan.node_type == :clenshaw_curtis_equidistant
     error("Not implemented for clenshaw_curtis_equidistant nodes")
@@ -1540,7 +1540,7 @@ function smolyak_gradient_threaded(y::AbstractArray{T,1},plan::P) where {T<:Abst
 
   weights = smolyak_weights_threaded(y,plan.grid,plan.multi_index,plan.domain)
   
-  function smolyak_grad(x::Array{R,1}) where {R<:Number}
+  function smolyak_grad(x::AbstractArray{R,1}) where {R<:Real}
   
     return smolyak_gradient(weights,x,plan.multi_index,plan.domain)
   
@@ -1572,7 +1572,7 @@ julia> hess = smolyak_hessian(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
    1.06753  0.199234]
 ```
 """
-function smolyak_hessian(weights::Array{T,1},point::Array{R,1},multi_index::Array{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {T<:AbstractFloat,R<:Number,S<:Integer}
+function smolyak_hessian(weights::AbstractArray{T,1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {T<:Real,R<:Real,S<:Integer}
   
   dom = check_domain(size(multi_index,2),domain)
 
@@ -1681,7 +1681,7 @@ julia> hess([0.37,0.71])
   1.06753  0.199234]
 ```
 """
-function smolyak_hessian(y::AbstractArray{T,1},plan::P) where {T<:AbstractFloat,P<:SApproximationPlan}
+function smolyak_hessian(y::AbstractArray{T,1},plan::P) where {T<:Real,P<:SApproximationPlan}
 
   if plan.node_type == :clenshaw_curtis_equidistant
     error("Not implemented for clenshaw_curtis_equidistant nodes")
@@ -1689,7 +1689,7 @@ function smolyak_hessian(y::AbstractArray{T,1},plan::P) where {T<:AbstractFloat,
 
   weights = smolyak_weights(y,plan.grid,plan.multi_index,plan.domain)
   
-  function smolyak_hess(x::Array{R,1}) where {R<:Number}
+  function smolyak_hess(x::AbstractArray{R,1}) where {R<:Real}
   
     return smolyak_hessian(weights,x,plan.multi_index,plan.domain)
   
@@ -1719,7 +1719,7 @@ julia> hess([0.37,0.71])
   1.06753  0.199234]
 ```
 """
-function smolyak_hessian_threaded(y::AbstractArray{T,1},plan::P) where {T<:AbstractFloat,P<:SApproximationPlan}
+function smolyak_hessian_threaded(y::AbstractArray{T,1},plan::P) where {T<:Real,P<:SApproximationPlan}
   
   if plan.node_type == :clenshaw_curtis_equidistant
     error("Not implemented for clenshaw_curtis_equidistant nodes")
@@ -1727,7 +1727,7 @@ function smolyak_hessian_threaded(y::AbstractArray{T,1},plan::P) where {T<:Abstr
 
   weights = smolyak_weights_threaded(y,plan.grid,plan.multi_index,plan.domain)
   
-  function smolyak_hess(x::Array{R,1}) where {R<:Number}
+  function smolyak_hess(x::AbstractArray{R,1}) where {R<:Real}
   
     return smolyak_hessian(weights,x,plan.multi_index,plan.domain)
   
@@ -2109,7 +2109,7 @@ function smolyak_grid_full(node_type::Function,d::S,mu::S,domain=[ones(1,d);-one
 
 end
 
-function determine_grid_size_full(mi::Array{S,2}) where {S<:Integer} # Internal function, not exported
+function determine_grid_size_full(mi::AbstractArray{S,2}) where {S<:Integer} # Internal function, not exported
 
   temp = similar(mi)
 
@@ -2157,7 +2157,7 @@ julia> master_i = master_index(mi)
  22  5]
 ```
 """
-function master_index(multi_index::Array{S,2}) where {S<:Integer}
+function master_index(multi_index::AbstractArray{S,2}) where {S<:Integer}
 
   temp_ind   = similar(multi_index)
   master_ind = zeros(S,size(multi_index,1),2)
@@ -2182,7 +2182,7 @@ function master_index(multi_index::Array{S,2}) where {S<:Integer}
 
 end
 
-function cheb_poly(order::S,x::R) where {S<:Integer,R<:Number} # Internal function, not exported
+function cheb_poly(order::S,x::R) where {S<:Integer,R<:Real} # Internal function, not exported
 
   p  = one(R)
   p1 = zero(R)
@@ -2201,7 +2201,7 @@ function cheb_poly(order::S,x::R) where {S<:Integer,R<:Number} # Internal functi
 
 end
 
-function prod_cjs(max_grid::Array{T,2},min_grid::Array{T,2},poly_grid::Array{T,2}) where {T<:AbstractFloat} # Internal function, not exported
+function prod_cjs(max_grid::AbstractArray{T,2},min_grid::AbstractArray{T,2},poly_grid::AbstractArray{T,2}) where {T<:Real} # Internal function, not exported
 
   cjs = ones(size(poly_grid))
 
@@ -2217,7 +2217,7 @@ function prod_cjs(max_grid::Array{T,2},min_grid::Array{T,2},poly_grid::Array{T,2
 
 end
 
-function compute_scale_factor(multi_index::Array{S,1}) where {S<:Integer} # Internal function, not exported
+function compute_scale_factor(multi_index::AbstractArray{S,1}) where {S<:Integer} # Internal function, not exported
 
   scale_factor = 1.0
 
@@ -2256,7 +2256,7 @@ julia> w = smolyak_weights_full(y,g,mi,[1.0 1.0; 0.0 0.0])
  [0.625, 0.49999999999999994, 0.12499999999999992, -1.6653345369377348e-16, 2.7755575615628914e-17]]
 ```
 """
-function smolyak_weights_full(y_f::Array{T,1},grid::Array{T,2},multi_index::Array{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {S<:Integer, T<:AbstractFloat}
+function smolyak_weights_full(y_f::AbstractArray{T,1},grid::AbstractArray{T,2},multi_index::AbstractArray{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {S<:Integer,T<:Real}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -2324,7 +2324,7 @@ julia> yhat = smolyak_evaluate_full(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
 0.5953026581237829
 ```
 """
-function smolyak_evaluate_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {S<:Integer,R<:Number,T<:AbstractFloat}
+function smolyak_evaluate_full(weights::Array{Array{T,1},1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {S<:Integer,R<:Real,T<:Real}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -2352,7 +2352,7 @@ function smolyak_evaluate_full(weights::Array{Array{T,1},1},point::Array{R,1},mu
 
 end
 
-function deriv_cheb_poly(order::S,x::R) where {S<:Integer,R<:Number} # Internal function, not exported
+function deriv_cheb_poly(order::S,x::R) where {S<:Integer,R<:Real} # Internal function, not exported
 
   p0 = one(R)
   p1 = zero(R)
@@ -2377,7 +2377,7 @@ function deriv_cheb_poly(order::S,x::R) where {S<:Integer,R<:Number} # Internal 
 
 end
 
-function _smolyak_derivative_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2},pos::S) where {S<:Integer,R<:Number,T<:AbstractFloat} # Internal function, not exported
+function _smolyak_derivative_full(weights::Array{Array{T,1},1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},pos::S) where {S<:Integer,R<:Real,T<:Real} # Internal function, not exported
 
   mi = sum(multi_index,dims=2)
   d  = size(multi_index,2)
@@ -2434,7 +2434,7 @@ julia> deriv2 = smolyak_derivative_full(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0],2)
 0.5250627466157655
 ```
 """
-function smolyak_derivative_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2},domain::Union{Array{T,1},Array{T,2}},pos::S) where {S<:Integer,R<:Number,T<:AbstractFloat}
+function smolyak_derivative_full(weights::Array{Array{T,1},1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},domain::Union{AbstractArray{T,1},AbstractArray{T,2}},pos::S) where {S<:Integer,R<:Real,T<:Real}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -2471,7 +2471,7 @@ julia> grad = smolyak_gradient_full(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
 [0.403682  0.525063]
 ```
 """
-function smolyak_gradient_full(weights::Array{Array{T,1},1},point::Array{R,1},multi_index::Array{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {S<:Integer,R<:Number,T<:AbstractFloat}
+function smolyak_gradient_full(weights::Array{Array{T,1},1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {S<:Integer,R<:Real,T<:Real}
 
   dom = check_domain(size(multi_index,2),domain)
 

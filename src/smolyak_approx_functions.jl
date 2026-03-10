@@ -76,23 +76,7 @@ julia> points = clenshaw_curtis_equidistant(4,[3.0,-1.0])
 """
 function clenshaw_curtis_equidistant(n::S,domain = [1.0,-1.0]) where {S<:Integer}
 
-  # Construct the nodes on the [-1.0,1.0] interval
-
-  if n == 1
-    nodes   = [0.0] # allocates
-  else
-    nodes    = zeros(n) # allocates
-    nodes[1] = -1.0
-    nodes[n] =  1.0
-    for i = 2:div(n,2)
-      nodes[i]       =  2*(i-1)/(n-1) - 1.0
-      nodes[end-i+1] = -2*(i-1)/(n-1) + 1.0
-    end
-  end
-
-  # Scale the nodes to the desired domain
-
-  scale_nodes!(nodes,domain)
+  nodes = n == 1 ? [0.0] : collect(LinRange(domain[2], domain[1], n))
 
   return nodes
 
@@ -133,27 +117,12 @@ julia> points = clenshaw_curtis_equidistant(Double64,4,[3.0,-1.0])
 """
 function clenshaw_curtis_equidistant(T::DataType,n::S,domain = [1.0,-1.0]) where {S<:Integer}
 
-  # Construct the nodes on the [-1.0,1.0] interval
-
-  if n == 1
-    nodes   = [zero(T)] # allocates
-  else
-    nodes    = zeros(T,n) # allocates
-    nodes[1] = -one(T)
-    nodes[n] =  one(T)
-    for i = 2:div(n,2)
-      nodes[i]       =  2*(i-1)/(n-1) - one(T)
-      nodes[end-i+1] = -2*(i-1)/(n-1) + one(T)
-    end
-  end
-
-  # Scale the nodes to the desired domain
-
-  scale_nodes!(nodes,domain)
+  nodes = n == 1 ? [T(0.0)] : collect(T.(LinRange(domain[2], domain[1], n)))
 
   return nodes
 
 end
+
 
 """
 Creates the multi-index for a ```d```-variable ansiotropic grid with layers given by the vector ```mu```.  Returns
@@ -175,22 +144,23 @@ julia> m_index = generate_multi_index(2,[2,1])
  2  2]
  ```
 """
-function generate_multi_index(d::S,mu::AbstractArray{S,1}) where {S<:Integer}
+function generate_multi_index(d::S,mu::AbstractVector{S}) where {S<:Integer}
 
   nt = num_terms(mu,d)
-  multi_index = Array{S,2}(undef,nt,d) # allocates
-  multi_index[1,:] = ones(S,1,d) # allocates
+  multi_index = Matrix{S}(undef,nt,d) # allocates
+  multi_index[1:1,:] .= ones(S,1,d) # allocates
 
   max_mu = maximum(mu)
+  mu1 = mu .+ 1
 
   w = Tuple(max_mu+1 for _ in 1:d) # allocates
   candidate_indexes = Tuple.(CartesianIndices(w)) # allocates
   pos = 1
   @inbounds for i = 2:(max_mu+1)^d
-    if sum(candidate_indexes[i]) <= d+max_mu && sum(candidate_indexes[i] .<= mu .+ 1) == d
+    if sum(candidate_indexes[i]) <= d+max_mu && all(candidate_indexes[i] .<= mu1)
       pos += 1
       if pos > nt # handles the case where nt is under-estimated
-        multi_index = [multi_index; collect(candidate_indexes[i])'] # allocates
+        multi_index = vcat(multi_index, candidate_indexes[i]) # allocates
       else
        multi_index[pos,:] .= candidate_indexes[i] # allocates
       end
@@ -217,7 +187,7 @@ m_index = generate_multi_index(d,mu)
 Example
 =======
 ```
-julia> m_index = generate_multi_index(2,2])
+julia> m_index = generate_multi_index(2,2)
 [1  1
  2  1
  3  1
@@ -234,40 +204,37 @@ function generate_multi_index(d::S,mu::S) where {S<:Integer}
   else
     multi_index_base = generate_multi_index(d-1,mu)
     N = size(multi_index_base,1)
-    multi_index = zeros(S,N*(mu+1),d)
+    multi_index = Matrix{S}(undef,num_terms(mu,d),d)
     pos = 0
     @inbounds @views for j = 1:N
+      row_sum = sum(multi_index_base[j,:]) # precompute outside inner loop
       for i = 1:mu+1
-        if sum(multi_index_base[j,:]) + i <= d+mu
+        if row_sum + i <= d+mu
           pos += 1
           multi_index[pos,2:d] .= multi_index_base[j,:]
           multi_index[pos,1] = i
         end
       end
     end
-    return multi_index[1:pos,:]
+    return multi_index
   end
-end    
-  
+end
+
 # Computes the number of terms in the multi-index for the isotropic case (it also computes the number of terms in
 # a complete polynominal based on the order and the number of dimensions).
 
 function num_terms(order::S,d::S) where {S <: Integer} # Internal function, not exported
 
-  if d == 1
-    return order+1
-  else
-    return div(num_terms(order,d-1)*(order+d),d)
-  end
+  return binomial(order + d, d)
 
 end
 
 # Poorly approximates the number of terms in the multi-index for the ansiotropic case.
 
-function num_terms(order::AbstractArray{S,1},d::S) where {S<:Integer} # Internal function, not exported
+function num_terms(order::AbstractVector{S},d::S) where {S<:Integer} # Internal function, not exported
 
   max_mu = maximum(order)
-  nt = num_terms(max_mu,d) # Deliberate over-estimate of the number of terms
+  nt     = num_terms(max_mu,d) # Deliberate over-estimate of the number of terms
     
   return nt
   
@@ -276,41 +243,39 @@ end
 m_i(x::S) where {S <: Integer} = (x == 1 ? 1 : 2^(x-1) + 1) # Internal function, not exported
 m_i(x::Array{S,N}) where {S <: Integer,N} = m_i.(x) # Internal function not exported
 
-function combine_nodes(nodes1::Union{AbstractArray{R,1},AbstractArray{R,2}},nodes2::AbstractArray{R,1}) where {R<:Real} # Internal function, not exported
-  
+function combine_nodes(nodes1::Union{AbstractVector{R},AbstractMatrix{R}},nodes2::AbstractVector{R}) where {R<:Real} # Internal function, not exported
+
   # nodes1 can be a 1d or 2d array; nodes2 is a 1d array
 
   n1 = size(nodes1,1)
   n2 = size(nodes1,2)
   n3 = length(nodes2)
 
-  combined_nodes = Array{R,2}(undef,n1*n3,n2+1)
+  combined_nodes = Matrix{R}(undef,n1*n3,n2+1)
 
-  @inbounds for i = 1:n3
-    combined_nodes[(i-1)*n1+1:i*n1,1:n2] = nodes1
-  end
-  @inbounds for i = 1:n1
-    @inbounds for j = 1:n3
-      combined_nodes[(j-1)*n1+i,n2+1] = nodes2[j]
-    end
+  @inbounds for j = 1:n3
+    block = (j-1)*n1+1:j*n1
+    combined_nodes[block,1:n2] .= nodes1
+    combined_nodes[block,n2+1] .= nodes2[j]
   end
 
   return combined_nodes
 
 end
 
-function scale_nodes!(nodes::AbstractArray{R,1},domain::AbstractArray{T,1}) where {T<:Real,R<:Real} # Internal function, not exported
+
+function scale_nodes!(nodes::AbstractVector{R},domain::AbstractVector{T}) where {T<:Real,R<:Real} # Internal function, not exported
 
   @inbounds for i in eachindex(nodes)
-    nodes[i] = domain[2] + (1.0+nodes[i])*(domain[1]-domain[2])*0.5
+    nodes[i] = domain[2] + (one(R) + nodes[i])*(domain[1]-domain[2])*R(0.5)
   end
 
 end
 
-function scale_nodes!(nodes::AbstractArray{R,2},domain::AbstractArray{T,2}) where {T<:Real,R<:Real} # Internal function, not exported
+function scale_nodes!(grid::AbstractMatrix{R},domain::AbstractMatrix{T}) where {T<:Real,R<:Real} # Internal function, not exported
 
-  @inbounds for i in CartesianIndices(nodes)
-    nodes[i] = domain[2,i[2]] + (1.0+nodes[i])*(domain[1,i[2]]-domain[2,i[2]])*0.5
+  @inbounds for i in CartesianIndices(grid)
+    grid[i] = domain[2,i[2]] + (one(R) + grid[i])*(domain[1,i[2]]-domain[2,i[2]])*R(0.5)
   end
    
 end
@@ -328,26 +293,24 @@ Example
 
 ```
 julia> dom = [-1.0 2.0; 2.0 -1.0]
-julia> domain = check_domain(dom)
+julia> domain = check_domain(2,dom)
 ```
 """
-function check_domain(d::S,domain::Union{AbstractArray{T,1},AbstractArray{T,2}}) where {S<:Integer,T<:Real}
+function check_domain(d::S,domain::Union{AbstractVector{T},AbstractMatrix{T}}) where {S<:Integer,T<:Real}
 
   if ndims(domain) == 1 # domain is a vector, so convert to a matrix
-    dom = reshape(domain,2,1)
+    dom = copy(reshape(domain,2,1)) # copy to avoid aliasing domain through reshape
   else
     dom = copy(domain)
   end
 
-  n = size(dom)
-  if d != n[2]
+  if d != size(dom,2)
     error("The size of 'domain' is inconsistent with the number of variables entering the function.")
   end
 
-  for i in 1:n[2]
+  for i in 1:size(dom,2)
     if dom[1,i] < dom[2,i]
-      dom[1,i] = maximum(domain[:,i])
-      dom[2,i] = minimum(domain[:,i])
+      dom[1,i], dom[2,i] = dom[2,i], dom[1,i] # swap: no allocation, no aliasing
     end
   end
 
@@ -376,7 +339,7 @@ julia> grid, m_index = smolyak_grid(chebyshev_extrema,2,2,[3.0 1.5; 2.0 0.5])
 julia> grid, m_index = smolyak_grid(chebyshev_extrema,2,[2,2],[3.0 1.5; 2.0 0.5])
 ```
 """
-function smolyak_grid(node_type::Function,d::S,mu::Union{S,AbstractArray{S,1}},domain=[ones(1, d); -ones(1, d)]) where {S<:Integer}
+function smolyak_grid(node_type::Function,d::S,mu::Union{S,AbstractVector{S}},domain=[ones(1, d); -ones(1, d)]) where {S<:Integer}
 
   dom = check_domain(d,domain)
 
@@ -388,14 +351,14 @@ function smolyak_grid(node_type::Function,d::S,mu::Union{S,AbstractArray{S,1}},d
 
   # Create base nodes to be used in the sparse grid
 
-  base_nodes   = Array{Array{T,1},1}(undef,length(unique_node_number))
+  base_nodes   = Vector{Vector{T}}(undef,length(unique_node_number))
   for i in eachindex(unique_node_number)
     base_nodes[i] = node_type(unique_node_number[i])
   end
 
   # Determine the unique nodes introduced at each higher level
 
-  unique_base_nodes = Array{Array{T,1},1}(undef,length(unique_node_number))
+  unique_base_nodes = Vector{Vector{T}}(undef,length(unique_node_number))
   unique_base_nodes[1] = base_nodes[1]
   for i = 2:length(unique_base_nodes)
     unique_base_nodes[i] = setdiff(base_nodes[i],base_nodes[i-1])
@@ -403,7 +366,7 @@ function smolyak_grid(node_type::Function,d::S,mu::Union{S,AbstractArray{S,1}},d
 
   # Construct the sparse grid from the unique nodes
 
-  grid = Array{T,2}(undef,determine_grid_size(multi_index))
+  grid = Matrix{T}(undef,determine_grid_size(multi_index))
   l = 1
   @inbounds for j in axes(multi_index,1)
     new_nodes = unique_base_nodes[multi_index[j,1]] # Here new_nodes is a 1d array
@@ -427,25 +390,12 @@ end
 
 function determine_grid_size(mi::AbstractArray{S,N}) where {S<:Integer,N} # Internal function, not exported
 
-  temp = similar(mi)
-
-  for i in axes(mi,1)
-    for j in axes(mi,2)
-      if mi[i,j] == 1
-        temp[i,j] = 1
-      elseif mi[i,j] == 2
-        temp[i,j] = 2^(mi[i,j]-1)
-      else
-        temp[i,j] = 2^(mi[i,j]-1)+1 - (2^(mi[i,j]-2)+1)
-      end
-    end
-  end
-
   s = 0
-  for i in axes(mi,1)
+  @inbounds for i in axes(mi,1)
     t = 1
     for j in axes(mi,2)
-      t *= temp[i,j]
+      k = mi[i,j]
+      t *= k == 1 ? 1 : k == 2 ? 2 : 2^(k-2)
     end
     s += t
   end
@@ -474,7 +424,7 @@ julia> splan = smolyak_plan(chebyshev_extrema,2,2,[3.0 1.5; 2.0 0.5])
 julia> splan = smolyak_plan(clenshaw_curtis_equidistant,2,[2,2],[3.0 1.5; 2.0 0.5])
 ```
 """
-function smolyak_plan(node_type::Function,d::S,mu::Union{S,AbstractArray{S,1}},domain=[ones(1, d); -ones(1, d)]) where {S<:Integer}
+function smolyak_plan(node_type::Function,d::S,mu::Union{S,AbstractVector{S}},domain=[ones(1, d); -ones(1, d)]) where {S<:Integer}
 
   dom = check_domain(d,domain)
 
@@ -506,7 +456,7 @@ julia> y = [f(g[i,:]) for i in axes(g,1)]
 julia> w = smolyak_weights(y,g,mi,[1.0 1.0; 0.0 0.0])
 ```
 """
-function smolyak_weights(y::AbstractArray{T,1},grid::AbstractArray{T,2},multi_index::AbstractArray{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
+function smolyak_weights(y::AbstractVector{T},grid::AbstractMatrix{T},multi_index::AbstractMatrix{S},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -529,8 +479,8 @@ function smolyak_weights(y::AbstractArray{T,1},grid::AbstractArray{T,2},multi_in
   #   Combine the polynomial terms to construct a row of the interpolation matrix
   #   Iterate over the grid, doing the above for steps at each iteration, to compute all rows of the interpolation matrix
 
-  base_polynomials        = Array{Array{T,2},1}(undef,length(unique_orders))
-  unique_base_polynomials = Array{Array{T,2},1}(undef,length(unique_orders))
+  base_polynomials        = Vector{Matrix{T}}(undef,length(unique_orders))
+  unique_base_polynomials = Vector{Matrix{T}}(undef,length(unique_orders))
 
   @inbounds for k in axes(grid,1)
 
@@ -589,7 +539,7 @@ julia> y = [f(g[i,:]) for i in axes(g,1)]
 julia> w = smolyak_weights_threaded(y,g,mi,[1.0 1.0; 0.0 0.0])
 ```
 """
-function smolyak_weights_threaded(y::AbstractArray{T,1},grid::AbstractArray{T,2},multi_index::AbstractArray{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
+function smolyak_weights_threaded(y::AbstractVector{T},grid::AbstractMatrix{T},multi_index::AbstractMatrix{S},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -614,8 +564,8 @@ function smolyak_weights_threaded(y::AbstractArray{T,1},grid::AbstractArray{T,2}
 
   @inbounds @sync Threads.@threads for k in axes(grid,1)
 
-    base_polynomials        = Array{Array{T,2},1}(undef,length(unique_orders))
-    unique_base_polynomials = Array{Array{T,2},1}(undef,length(unique_orders))
+    base_polynomials        = Vector{Matrix{T}}(undef,length(unique_orders))
+    unique_base_polynomials = Vector{Matrix{T}}(undef,length(unique_orders))
 
     # Construct the base polynomials
 
@@ -671,7 +621,7 @@ julia> iim = smolyak_inverse_interpolation_matrix(g,mi)
 julia> w = smolyak_weights(y,iim)
 ```
 """
-function smolyak_weights(y::AbstractArray{T,1},inverse_interpolation_matrix::AbstractArray{T,2}) where {T<:Real}
+function smolyak_weights(y::AbstractVector{T},inverse_interpolation_matrix::AbstractMatrix{T}) where {T<:Real}
 
   weights = inverse_interpolation_matrix*y
 
@@ -697,7 +647,7 @@ julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
 julia> iim = smolyak_inverse_interpolation_matrix(g,mi)
 ```
 """
-function smolyak_inverse_interpolation_matrix(grid::AbstractArray{T,2},multi_index::AbstractArray{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
+function smolyak_inverse_interpolation_matrix(grid::AbstractMatrix{T},multi_index::AbstractMatrix{S},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -720,8 +670,8 @@ function smolyak_inverse_interpolation_matrix(grid::AbstractArray{T,2},multi_ind
   #   Combine the polynomial terms to construct a row of the interpolation matrix
   #   Iterate over the grid, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
 
-  base_polynomials        = Array{Array{T,2},1}(undef,length(unique_orders)) # allocates
-  unique_base_polynomials = Array{Array{T,2},1}(undef,length(unique_orders)) # allocates
+  base_polynomials        = Vector{Matrix{T}}(undef,length(unique_orders)) # allocates
+  unique_base_polynomials = Vector{Matrix{T}}(undef,length(unique_orders)) # allocates
 
   @inbounds for k in axes(grid,1)
 
@@ -777,7 +727,7 @@ julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
 julia> iim = smolyak_inverse_interpolation_matrix_threaded(g,mi)
 ```
 """
-function smolyak_inverse_interpolation_matrix_threaded(grid::AbstractArray{T,2},multi_index::AbstractArray{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
+function smolyak_inverse_interpolation_matrix_threaded(grid::AbstractMatrix{T},multi_index::AbstractMatrix{S},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -802,8 +752,8 @@ function smolyak_inverse_interpolation_matrix_threaded(grid::AbstractArray{T,2},
 
   @inbounds @sync Threads.@threads for k in axes(grid,1)
 
-    base_polynomials        = Array{Array{T,2},1}(undef,length(unique_orders))
-    unique_base_polynomials = Array{Array{T,2},1}(undef,length(unique_orders))
+    base_polynomials        = Vector{Matrix{T}}(undef,length(unique_orders))
+    unique_base_polynomials = Vector{Matrix{T}}(undef,length(unique_orders))
 
     # Construct the base polynomials
 
@@ -860,24 +810,24 @@ julia> y = [f(g[i,:]) for i in axes(g,1)]
 julia> w = smolyak_pl_weights(y,g,mi,[1.0 1.0; 0.0 0.0])
 ```
 """
-function smolyak_pl_weights(y::AbstractArray{T,1},grid::AbstractArray{T,2},multi_index::AbstractArray{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
+function smolyak_pl_weights(y::AbstractVector{T},grid::AbstractMatrix{T},multi_index::AbstractMatrix{S},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
   # Normalize grid to the [1.0,-1.0]^d interval
-    
+
   grid = copy(grid)
   for i in axes(grid,2)
-    grid[:,i] = normalize_node(grid[:,i],dom[:,i])
+    grid[:,i] .= normalize_node(grid[:,i],dom[:,i])
   end
 
   interpolation_matrix = zeros(size(grid,1),size(grid,1))
 
   @inbounds for l in axes(grid,1)
     k = 1
-    x = grid[l,:]
+    x = @view grid[l,:]  
     @inbounds for i in axes(multi_index,1)
-      m_node_number = m_i.(multi_index[i,:])
+      m_node_number = m_i.(@view multi_index[i,:])  
       if prod(m_node_number) == 1
         interpolation_matrix[l,k] = one(T)
         k += 1
@@ -892,11 +842,12 @@ function smolyak_pl_weights(y::AbstractArray{T,1},grid::AbstractArray{T,2},multi
           a = one(T)
           @inbounds for j in eachindex(m_node_number)
             if m_node_number[j] > 1
-              if abs(x[j] - grid[k,j]) > 2/(m_node_number[j]-1)
-                a *= zero(T)
-              else
-                a *= one(T) - ((m_node_number[j]-1)/2)*abs(x[j]-grid[k,j])
+              diff = abs(x[j] - grid[k,j])  
+              if diff > 2/(m_node_number[j]-1)
+                a = zero(T)
+                break  
               end
+              a *= one(T) - ((m_node_number[j]-1)/2)*diff
             end
           end
           interpolation_matrix[l,k] = a
@@ -933,26 +884,26 @@ julia> y = [f(g[i,:]) for i in axes(g,1)]
 julia> w = smolyak_pl_weights_threaded(y,g,mi,[1.0 1.0; 0.0 0.0])
 ```
 """
-function smolyak_pl_weights_threaded(y::AbstractArray{T,1},grid::AbstractArray{T,2},multi_index::AbstractArray{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
+function smolyak_pl_weights_threaded(y::AbstractVector{T},grid::AbstractMatrix{T},multi_index::AbstractMatrix{S},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {T<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
   # Normalize grid to the [1.0,-1.0]^d interval
-      
+
   grid = copy(grid)
   for i in axes(grid,2)
-    grid[:,i] = normalize_node(grid[:,i],dom[:,i])
+    grid[:,i] .= normalize_node(grid[:,i],dom[:,i])
   end
-  
+
   interpolation_matrix = zeros(size(grid,1),size(grid,1))
 
-  @inbounds @sync Threads.@threads for l in axes(grid,1)
+  @inbounds Threads.@threads for l in axes(grid,1)  
     k = 1
-    x = grid[l,:]
+    x = @view grid[l,:]  
     @inbounds for i in axes(multi_index,1)
-      m_node_number = m_i.(multi_index[i,:])
+      m_node_number = m_i.(@view multi_index[i,:])  
       if prod(m_node_number) == 1
-        interpolation_matrix[l,k] = 1.0
+        interpolation_matrix[l,k] = one(T)
         k += 1
       else
         extra_nodes = 1
@@ -962,14 +913,15 @@ function smolyak_pl_weights_threaded(y::AbstractArray{T,1},grid::AbstractArray{T
           end
         end
         for h = 1:extra_nodes
-          a = 1.0
+          a = one(T)
           @inbounds for j in eachindex(m_node_number)
             if m_node_number[j] > 1
-              if abs(x[j] - grid[k,j]) > 2/(m_node_number[j]-1)
-                a *= 0.0
-              else
-                a *= 1.0 - ((m_node_number[j]-1)/2)*abs(x[j]-grid[k,j])
+              diff = abs(x[j] - grid[k,j])  
+              if diff > 2/(m_node_number[j]-1)
+                a = zero(T)
+                break  
               end
+              a *= one(T) - ((m_node_number[j]-1)/2)*diff
             end
           end
           interpolation_matrix[l,k] = a
@@ -1003,7 +955,7 @@ julia> point = g[5,:]
 julia> spoly = smolyak_polynomial(point,mi,[1.0 1.0; 0.0 0.0])
 ```
 """
-function smolyak_polynomial(point::AbstractArray{R,1},multi_index::AbstractArray{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {R<:Real,S<:Integer}
+function smolyak_polynomial(point::AbstractVector{R},multi_index::AbstractMatrix{S},domain=[ones(1,length(point));-ones(1,length(point))]) where {R<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -1024,14 +976,14 @@ function smolyak_polynomial(point::AbstractArray{R,1},multi_index::AbstractArray
 
   # Here we construct the base polynomials
 
-  base_polynomials = Array{Array{R,2}}(undef,length(unique_orders))
+  base_polynomials = Vector{Matrix{R}}(undef,length(unique_orders))
   for i in eachindex(unique_orders)
     base_polynomials[i] = chebyshev_polynomial(unique_orders[i],point)
   end
 
   # Compute the unique polynomial terms from the base polynomials
 
-  unique_base_polynomials = Array{Array{R,2}}(undef,length(unique_orders))
+  unique_base_polynomials = Vector{Matrix{R}}(undef,length(unique_orders))
   for i = length(unique_orders):-1:2
     unique_base_polynomials[i] = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
   end
@@ -1040,7 +992,7 @@ function smolyak_polynomial(point::AbstractArray{R,1},multi_index::AbstractArray
   # Construct the first row of the interplation matrix
 
   n = determine_grid_size(multi_index)
-  polynomial = Array{R,1}(undef,n[1])
+  polynomial = Vector{R}(undef,n[1])
 
   # Iterate over grid, doing the above three steps at each iteration
 
@@ -1080,7 +1032,7 @@ julia> yhat = smolyak_evaluate(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
 0.5953026581237828
 ```
 """
-function smolyak_evaluate(weights::AbstractArray{T,1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {T<:Real,R<:Real,S<:Integer}
+function smolyak_evaluate(weights::AbstractVector{T},point::AbstractVector{R},multi_index::AbstractMatrix{S},domain=[ones(1,length(point));-ones(1,length(point))]) where {T<:Real,R<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -1102,14 +1054,14 @@ function smolyak_evaluate(weights::AbstractArray{T,1},point::AbstractArray{R,1},
   
   # Here we construct the base polynomials
   
-  base_polynomials = Array{Array{R,2}}(undef,length(unique_orders))
+  base_polynomials = Vector{Matrix{R}}(undef,length(unique_orders))
   for i in eachindex(unique_orders)
     base_polynomials[i] = chebyshev_polynomial(unique_orders[i],point)
   end
   
   # Compute the unique polynomial terms from the base polynomials
   
-  unique_base_polynomials = Array{Array{R,2}}(undef,length(unique_orders))
+  unique_base_polynomials = Vector{Matrix{R}}(undef,length(unique_orders))
   for i = length(unique_orders):-1:2
     unique_base_polynomials[i] = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
   end
@@ -1117,7 +1069,7 @@ function smolyak_evaluate(weights::AbstractArray{T,1},point::AbstractArray{R,1},
   
   # Construct the first row of the interplation matrix
   
-  polynomials = Array{R,1}(undef,length(weights))
+  polynomials = Vector{R}(undef,length(weights))
   
   # Iterate over grid, doing the above three steps at each iteration
   
@@ -1161,7 +1113,7 @@ julia> yhat = smolyak_evaluate(w,p)
 0.5953026581237828
 ```
 """
-function smolyak_evaluate(weights::AbstractArray{T,1},polynomial::AbstractArray{R,1}) where {T<:Real,R<:Real}
+function smolyak_evaluate(weights::AbstractVector{T},polynomial::AbstractVector{R}) where {T<:Real,R<:Real}
 
   estimate = weights'polynomial
   
@@ -1190,23 +1142,24 @@ julia> yhat = smolyak_pl_evaluate(w,[0.37,0.71],g,mi,[1.0 1.0; 0.0 0.0])
 0.5549321821467206
 ```
 """
-function smolyak_pl_evaluate(weights::AbstractArray{T,1},point::AbstractArray{R,1},grid::AbstractArray{T,2},multi_index::AbstractArray{S,2},domain=[ones(1,length(point)); -ones(1,length(point))]) where {T<:Real,R<:Real,S<:Integer}
+function smolyak_pl_evaluate(weights::AbstractVector{T},point::AbstractVector{R},grid::AbstractMatrix{T},multi_index::AbstractMatrix{S},domain=[ones(1,length(point)); -ones(1,length(point))]) where {T<:Real,R<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
   grid  = copy(grid)
   point = copy(point)
   @inbounds for i in eachindex(point)
-    grid[:,i] = normalize_node(grid[:,i],dom[:,i])
+    grid[:,i] .= normalize_node(grid[:,i],dom[:,i])
     point[i] = normalize_node(point[i],dom[:,i])
   end
 
-  basis = Array{R,1}(undef,size(grid,1))
+  
+  estimate = zero(R)
   k = 1
   @inbounds for i in axes(multi_index,1)
-    m_node_number = m_i.(multi_index[i,:])
+    m_node_number = m_i.(@view multi_index[i,:])  
     if prod(m_node_number) == 1
-      basis[k] = one(R)
+      estimate += weights[k]
       k += 1
     else
       extra_nodes = 1
@@ -1216,25 +1169,21 @@ function smolyak_pl_evaluate(weights::AbstractArray{T,1},point::AbstractArray{R,
         end
       end
       @inbounds for h = 1:extra_nodes
-        a = 1.0
+        a = one(R)
         @inbounds for j in eachindex(m_node_number)
           if m_node_number[j] > 1
-            if abs(point[j] - grid[k,j]) > 2/(m_node_number[j]-1)
-              a *= zero(R)
-            else
-              a *= one(R) - ((m_node_number[j]-1)/2)*abs(point[j]-grid[k,j])
+            diff = abs(point[j] - grid[k,j])  
+            if diff > 2/(m_node_number[j]-1)
+              a = zero(R)
+              break  
             end
+            a *= one(R) - ((m_node_number[j]-1)/2)*diff
           end
         end
-        basis[k] = a
+        estimate += a*weights[k]
         k += 1
       end
     end
-  end
-
-  estimate = zero(R)
-  @inbounds for i in eachindex(basis)
-    estimate += basis[i]*weights[i]
   end
 
   return estimate
@@ -1268,7 +1217,7 @@ julia> f([0.37,0.71])
 0.5549321821467206
 ```
 """
-function smolyak_interp(y::AbstractArray{T,1},plan::P) where {T<:Real,P<:SApproximationPlan}
+function smolyak_interp(y::AbstractVector{T},plan::P) where {T<:Real,P<:SApproximationPlan}
 
   if plan.node_type == :chebyshev_extrema || plan.node_type == :chebyshev_gauss_lobatto
     weights = smolyak_weights(y,plan.grid,plan.multi_index,plan.domain)
@@ -1276,7 +1225,7 @@ function smolyak_interp(y::AbstractArray{T,1},plan::P) where {T<:Real,P<:SApprox
     weights = smolyak_pl_weights(y,plan.grid,plan.multi_index,plan.domain)
   end
 
-  function interp(x::AbstractArray{R,1}) where {R<:Real}
+  function interp(x::AbstractVector{R}) where {R<:Real}
 
     if plan.node_type == :chebyshev_extrema || plan.node_type == :chebyshev_gauss_lobatto
       return smolyak_evaluate(weights,x,plan.multi_index,plan.domain)
@@ -1317,7 +1266,7 @@ julia> f([0.37,0.71])
 0.5549321821467206
 ```
 """
-function smolyak_interp_threaded(y::AbstractArray{T,1},plan::P) where {T<:Real,P<:SApproximationPlan}
+function smolyak_interp_threaded(y::AbstractVector{T},plan::P) where {T<:Real,P<:SApproximationPlan}
 
   if plan.node_type == :chebyshev_extrema || plan.node_type == :chebyshev_gauss_lobatto
     weights = smolyak_weights_threaded(y,plan.grid,plan.multi_index,plan.domain)
@@ -1325,7 +1274,7 @@ function smolyak_interp_threaded(y::AbstractArray{T,1},plan::P) where {T<:Real,P
     weights = smolyak_pl_weights_threaded(y,plan.grid,plan.multi_index,plan.domain)
   end
 
-  function interp(x::AbstractArray{R,1}) where {R<:Real}
+  function interp(x::AbstractVector{R}) where {R<:Real}
 
     if plan.node_type == :chebyshev_extrema || plan.node_type == :chebyshev_gauss_lobatto
       return smolyak_evaluate(weights,x,plan.multi_index,plan.domain)
@@ -1339,39 +1288,36 @@ function smolyak_interp_threaded(y::AbstractArray{T,1},plan::P) where {T<:Real,P
 
 end
 
-function _smolyak_derivative(weights::AbstractArray{T,1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},pos::S) where {T<:Real,R<:Real,S<:Integer} # Internal function, not exported
+function _smolyak_derivative(weights::AbstractVector{T},point::AbstractVector{R},multi_index::AbstractMatrix{S},pos::S) where {T<:Real,R<:Real,S<:Integer} # Internal function, not exported
 
   unique_multi_index = sort(unique(multi_index))
   unique_orders = m_i.(unique_multi_index) .- 1
 
-  # Here we construct the base polynomials
+  # Construct the base polynomials
 
-  base_polynomials            = Array{Array{R,2},1}(undef,length(unique_orders))
-  base_polynomial_derivatives = Array{Array{R,2},1}(undef,length(unique_orders))
+  base_polynomials            = Vector{Matrix{R}}(undef,length(unique_orders))
+  base_polynomial_derivatives = Vector{Matrix{R}}(undef,length(unique_orders))
   for i in eachindex(unique_orders)
     base_polynomials[i]            = chebyshev_polynomial(unique_orders[i],point)
     base_polynomial_derivatives[i] = chebyshev_polynomial_deriv(unique_orders[i],point)
   end
 
-  # Compute the unique polynomial terms from the base polynomials
+  # Compute the unique polynomial terms (views avoid column-slice copies)
 
-  unique_base_polynomials = Array{Array{R,2},1}(undef,length(unique_orders))
-  unique_base_polynomial_derivatives = Array{Array{R,2},1}(undef,length(unique_orders))
-  for i = length(unique_orders):-1:2
-    unique_base_polynomials[i] = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
-    unique_base_polynomial_derivatives[i] = base_polynomial_derivatives[i][:,size(base_polynomial_derivatives[i-1],2)+1:end]
-  end
-  unique_base_polynomials[1] = base_polynomials[1]
+  unique_base_polynomials            = Vector{Matrix{R}}(undef,length(unique_orders))
+  unique_base_polynomial_derivatives = Vector{Matrix{R}}(undef,length(unique_orders))
+  unique_base_polynomials[1]            = base_polynomials[1]
   unique_base_polynomial_derivatives[1] = base_polynomial_derivatives[1]
+  for i = 2:length(unique_orders)
+    unique_base_polynomials[i]            = @view base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
+    unique_base_polynomial_derivatives[i] = @view base_polynomial_derivatives[i][:,size(base_polynomial_derivatives[i-1],2)+1:end]
+  end
 
-  # Construct the first row of the interplation matrix
+  # Accumulate evaluated_derivative directly, eliminating the intermediate polynomials array
 
-  polynomials = Array{R,1}(undef,length(weights))
-
-  # Iterate over nodes, doing the above three steps at each iteration
-
+  evaluated_derivative = zero(T)
   l = 1
-  @inbounds for j in axes(multi_index,1)
+  @inbounds @views for j in axes(multi_index,1)
     if pos == 1
       new_polynomials = unique_base_polynomial_derivatives[multi_index[j,1]][1,:]
     else
@@ -1385,14 +1331,10 @@ function _smolyak_derivative(weights::AbstractArray{T,1},point::AbstractArray{R,
       end
     end
     m = length(new_polynomials)
-    polynomials[l:l+m-1] = new_polynomials
+    for n in 1:m
+      evaluated_derivative += new_polynomials[n]*weights[l+n-1]
+    end
     l += m
-  end
-
-  evaluated_derivative = zero(T)
-
-  for i in eachindex(polynomials)
-    evaluated_derivative += polynomials[i]*weights[i]
   end
 
   return evaluated_derivative
@@ -1422,7 +1364,7 @@ julia> deriv2 = smolyak_derivative(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0],2)
 0.5250627466157657
 ```
 """
-function smolyak_derivative(weights::AbstractArray{T,1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},domain::Union{AbstractArray{T,1},AbstractArray{T,2}},pos::S) where {T<:Real,R<:Real,S<:Integer}
+function smolyak_derivative(weights::AbstractVector{T},point::AbstractVector{R},multi_index::AbstractMatrix{S},domain::Union{AbstractVector{T},AbstractMatrix{T}},pos::S) where {T<:Real,R<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -1459,15 +1401,20 @@ julia> grad = smolyak_gradient(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
 [0.403682  0.525063]
 ```
 """
-function smolyak_gradient(weights::AbstractArray{T,1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {T<:Real,R<:Real,S<:Integer}
+function smolyak_gradient(weights::AbstractVector{T},point::AbstractVector{R},multi_index::AbstractMatrix{S},domain=[ones(1,length(point));-ones(1,length(point))]) where {T<:Real,R<:Real,S<:Integer}
 
   dom = check_domain(size(multi_index,2),domain)
 
+  point = copy(point)
+  for i in eachindex(point)
+    point[i] = normalize_node(point[i],dom[:,i])
+  end
+
   d = length(point)
-  gradient = Array{R,2}(undef,1,d)
+  gradient = Matrix{R}(undef,1,d)
 
   for i = 1:d
-    gradient[i] = smolyak_derivative(weights,point,multi_index,dom,i)
+    gradient[i] = _smolyak_derivative(weights,point,multi_index,i) * (2.0/(dom[1,i]-dom[2,i]))
   end
 
   return gradient
@@ -1494,7 +1441,7 @@ julia> grad([0.37,0.71])
 [0.403682  0.525063]
 ```
 """
-function smolyak_gradient(y::AbstractArray{T,1},plan::P) where {T<:Real,P<:SApproximationPlan}
+function smolyak_gradient(y::AbstractVector{T},plan::P) where {T<:Real,P<:SApproximationPlan}
 
   if plan.node_type == :clenshaw_curtis_equidistant
     error("Not implemented for clenshaw_curtis_equidistant nodes")
@@ -1502,7 +1449,7 @@ function smolyak_gradient(y::AbstractArray{T,1},plan::P) where {T<:Real,P<:SAppr
 
   weights = smolyak_weights(y,plan.grid,plan.multi_index,plan.domain)
   
-  function smolyak_grad(x::AbstractArray{R,1}) where {R<:Real}
+  function smolyak_grad(x::AbstractVector{R}) where {R<:Real}
   
     return smolyak_gradient(weights,x,plan.multi_index,plan.domain)
   
@@ -1532,7 +1479,7 @@ julia> grad([0.37,0.71])
 [0.403682  0.525063]
 ```
 """
-function smolyak_gradient_threaded(y::AbstractArray{T,1},plan::P) where {T<:Real,P<:SApproximationPlan}
+function smolyak_gradient_threaded(y::AbstractVector{T},plan::P) where {T<:Real,P<:SApproximationPlan}
   
   if plan.node_type == :clenshaw_curtis_equidistant
     error("Not implemented for clenshaw_curtis_equidistant nodes")
@@ -1540,7 +1487,7 @@ function smolyak_gradient_threaded(y::AbstractArray{T,1},plan::P) where {T<:Real
 
   weights = smolyak_weights_threaded(y,plan.grid,plan.multi_index,plan.domain)
   
-  function smolyak_grad(x::AbstractArray{R,1}) where {R<:Real}
+  function smolyak_grad(x::AbstractVector{R}) where {R<:Real}
   
     return smolyak_gradient(weights,x,plan.multi_index,plan.domain)
   
@@ -1572,12 +1519,11 @@ julia> hess = smolyak_hessian(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
    1.06753  0.199234]
 ```
 """
-function smolyak_hessian(weights::AbstractArray{T,1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {T<:Real,R<:Real,S<:Integer}
-  
+function smolyak_hessian(weights::AbstractVector{T},point::AbstractVector{R},multi_index::AbstractMatrix{S},domain=[ones(1,length(point));-ones(1,length(point))]) where {T<:Real,R<:Real,S<:Integer}
+
   dom = check_domain(size(multi_index,2),domain)
 
   point = copy(point)
-
   d = length(point)
   for i = 1:d
     point[i] = normalize_node(point[i],dom[:,i])
@@ -1586,74 +1532,64 @@ function smolyak_hessian(weights::AbstractArray{T,1},point::AbstractArray{R,1},m
   unique_multi_index = sort(unique(multi_index))
   unique_orders = m_i.(unique_multi_index) .- 1
 
-  hess = Array{T,2}(undef,d,d)
+  # Construct the base polynomials
 
-  unique_multi_index = sort(unique(multi_index))
-  unique_orders = m_i.(unique_multi_index) .- 1
-
-  # Here we construct the base polynomials
-
-  base_polynomials                = Array{Array{R,2},1}(undef,length(unique_orders))
-  base_polynomial_derivatives     = Array{Array{R,2},1}(undef,length(unique_orders))
-  base_polynomial_sec_derivatives = Array{Array{R,2},1}(undef,length(unique_orders))
+  base_polynomials                = Vector{Matrix{R}}(undef,length(unique_orders))
+  base_polynomial_derivatives     = Vector{Matrix{R}}(undef,length(unique_orders))
+  base_polynomial_sec_derivatives = Vector{Matrix{R}}(undef,length(unique_orders))
   for i in eachindex(unique_orders)
     base_polynomials[i]                = chebyshev_polynomial(unique_orders[i],point)
     base_polynomial_derivatives[i]     = chebyshev_polynomial_deriv(unique_orders[i],point)
     base_polynomial_sec_derivatives[i] = chebyshev_polynomial_sec_deriv(unique_orders[i],point)
   end
 
-  # Compute the unique polynomial terms from the base polynomials
+  # Compute the unique polynomial terms (views avoid column-slice copies)
 
-  unique_base_polynomials                = Array{Array{R,2},1}(undef,length(unique_orders))
-  unique_base_polynomial_derivatives     = Array{Array{R,2},1}(undef,length(unique_orders))
-  unique_base_polynomial_sec_derivatives = Array{Array{R,2},1}(undef,length(unique_orders))
-  for i = length(unique_orders):-1:2
-    unique_base_polynomials[i]                = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
-    unique_base_polynomial_derivatives[i]     = base_polynomial_derivatives[i][:,size(base_polynomial_derivatives[i-1],2)+1:end]
-    unique_base_polynomial_sec_derivatives[i] = base_polynomial_sec_derivatives[i][:,size(base_polynomial_sec_derivatives[i-1],2)+1:end]
-  end
+  unique_base_polynomials                = Vector{Matrix{R}}(undef,length(unique_orders))
+  unique_base_polynomial_derivatives     = Vector{Matrix{R}}(undef,length(unique_orders))
+  unique_base_polynomial_sec_derivatives = Vector{Matrix{R}}(undef,length(unique_orders))
   unique_base_polynomials[1]                = base_polynomials[1]
   unique_base_polynomial_derivatives[1]     = base_polynomial_derivatives[1]
   unique_base_polynomial_sec_derivatives[1] = base_polynomial_sec_derivatives[1]
+  for i = 2:length(unique_orders)
+    unique_base_polynomials[i]                = @view base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
+    unique_base_polynomial_derivatives[i]     = @view base_polynomial_derivatives[i][:,size(base_polynomial_derivatives[i-1],2)+1:end]
+    unique_base_polynomial_sec_derivatives[i] = @view base_polynomial_sec_derivatives[i][:,size(base_polynomial_sec_derivatives[i-1],2)+1:end]
+  end
 
-  # Construct the first row of the interplation matrix
+  hess = Matrix{T}(undef,d,d)
 
-  polynomials = Array{R,1}(undef,length(weights))
-
-  # Iterate over nodes, doing the above three steps at each iteration
-
-  @inbounds for c in CartesianIndices(hess)
-    l = 1
-    @inbounds for j in axes(multi_index,1)
-      if 1 == c[1] == c[2]
-        new_polynomials = unique_base_polynomial_sec_derivatives[multi_index[j,1]][1,:]
-      elseif 1 == c[1] || 1 == c[2]
-        new_polynomials = unique_base_polynomial_derivatives[multi_index[j,1]][1,:]
-      else
-        new_polynomials = unique_base_polynomials[multi_index[j,1]][1,:]
-      end
-      for i = 2:size(multi_index,2)
-        if i == c[1] == c[2]
-          new_polynomials = kron(new_polynomials,unique_base_polynomial_sec_derivatives[multi_index[j,i]][i,:])
-        elseif i == c[1] || i == c[2]
-          new_polynomials = kron(new_polynomials,unique_base_polynomial_derivatives[multi_index[j,i]][i,:])
+  # Exploit symmetry: compute upper triangle and mirror; eliminates ~half the inner-loop work
+  for r = 1:d
+    for c = r:d
+      evaluated_derivative = zero(T)
+      l = 1
+      @inbounds @views for j in axes(multi_index,1)
+        if 1 == r == c
+          new_polynomials = unique_base_polynomial_sec_derivatives[multi_index[j,1]][1,:]
+        elseif 1 == r || 1 == c
+          new_polynomials = unique_base_polynomial_derivatives[multi_index[j,1]][1,:]
         else
-          new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][i,:])
+          new_polynomials = unique_base_polynomials[multi_index[j,1]][1,:]
         end
+        for i = 2:size(multi_index,2)
+          if i == r == c
+            new_polynomials = kron(new_polynomials,unique_base_polynomial_sec_derivatives[multi_index[j,i]][i,:])
+          elseif i == r || i == c
+            new_polynomials = kron(new_polynomials,unique_base_polynomial_derivatives[multi_index[j,i]][i,:])
+          else
+            new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][i,:])
+          end
+        end
+        m = length(new_polynomials)
+        for n in 1:m
+          evaluated_derivative += new_polynomials[n]*weights[l+n-1]
+        end
+        l += m
       end
-      m = length(new_polynomials)
-      polynomials[l:l+m-1] = new_polynomials
-      l += m
+      hess[r,c] = evaluated_derivative*(2.0/(dom[1,r]-dom[2,r]))*(2.0/(dom[1,c]-dom[2,c]))
+      hess[c,r] = hess[r,c]  # Hessian is symmetric
     end
-
-    evaluated_derivative = zero(T)
-
-    for i in eachindex(polynomials)
-      evaluated_derivative += polynomials[i]*weights[i]
-    end
-
-    hess[c] = evaluated_derivative*(2.0/(dom[1,c[1]]-dom[2,c[1]]))*(2.0/(dom[1,c[2]]-dom[2,c[2]]))
-
   end
 
   return hess
@@ -1681,7 +1617,7 @@ julia> hess([0.37,0.71])
   1.06753  0.199234]
 ```
 """
-function smolyak_hessian(y::AbstractArray{T,1},plan::P) where {T<:Real,P<:SApproximationPlan}
+function smolyak_hessian(y::AbstractVector{T},plan::P) where {T<:Real,P<:SApproximationPlan}
 
   if plan.node_type == :clenshaw_curtis_equidistant
     error("Not implemented for clenshaw_curtis_equidistant nodes")
@@ -1689,7 +1625,7 @@ function smolyak_hessian(y::AbstractArray{T,1},plan::P) where {T<:Real,P<:SAppro
 
   weights = smolyak_weights(y,plan.grid,plan.multi_index,plan.domain)
   
-  function smolyak_hess(x::AbstractArray{R,1}) where {R<:Real}
+  function smolyak_hess(x::AbstractVector{R}) where {R<:Real}
   
     return smolyak_hessian(weights,x,plan.multi_index,plan.domain)
   
@@ -1719,7 +1655,7 @@ julia> hess([0.37,0.71])
   1.06753  0.199234]
 ```
 """
-function smolyak_hessian_threaded(y::AbstractArray{T,1},plan::P) where {T<:Real,P<:SApproximationPlan}
+function smolyak_hessian_threaded(y::AbstractVector{T},plan::P) where {T<:Real,P<:SApproximationPlan}
   
   if plan.node_type == :clenshaw_curtis_equidistant
     error("Not implemented for clenshaw_curtis_equidistant nodes")
@@ -1727,7 +1663,7 @@ function smolyak_hessian_threaded(y::AbstractArray{T,1},plan::P) where {T<:Real,
 
   weights = smolyak_weights_threaded(y,plan.grid,plan.multi_index,plan.domain)
   
-  function smolyak_hess(x::AbstractArray{R,1}) where {R<:Real}
+  function smolyak_hess(x::AbstractVector{R}) where {R<:Real}
   
     return smolyak_hessian(weights,x,plan.multi_index,plan.domain)
   
@@ -1830,14 +1766,14 @@ function smolyak_clenshaw_curtis(f::Function,plan::SApproxPlan)
 
   T = eltype(grid)
 
-  base_polynomial_integrals = Array{Array{T,1},1}(undef,length(unique_orders))
+  base_polynomial_integrals = Vector{Vector{T}}(undef,length(unique_orders))
   for i in eachindex(unique_orders)
     base_polynomial_integrals[i] = integrate_cheb_polys(unique_orders[i])
   end
 
   # Compute the unique polynomial terms from the base polynomials
 
-  unique_base_polynomial_integrals = Array{Array{T,1},1}(undef,length(unique_orders))
+  unique_base_polynomial_integrals = Vector{Vector{T}}(undef,length(unique_orders))
   for i = length(unique_orders):-1:2
     unique_base_polynomial_integrals[i] = base_polynomial_integrals[i][length(base_polynomial_integrals[i-1])+1:end]
   end
@@ -1845,7 +1781,7 @@ function smolyak_clenshaw_curtis(f::Function,plan::SApproxPlan)
 
   # Construct the first row of the interplation matrix
 
-  polynomials = Array{T,1}(undef,length(weights))
+  polynomials = Vector{T}(undef,length(weights))
 
   # Iterate over nodes, doing the above three steps at each iteration
 
@@ -1920,8 +1856,8 @@ function smolyak_clenshaw_curtis(f::Function,plan::SApproxPlan,pos::S) where {S<
 
     T = eltype(grid)
 
-    base_polynomials          = Array{Array{T,1},1}(undef,length(unique_orders))
-    base_polynomial_integrals = Array{Array{T,1},1}(undef,length(unique_orders))
+    base_polynomials          = Vector{Vector{T}}(undef,length(unique_orders))
+    base_polynomial_integrals = Vector{Vector{T}}(undef,length(unique_orders))
     for i in eachindex(unique_orders)
       base_polynomials[i]          = chebyshev_polynomial(unique_orders[i],point)[:]
       base_polynomial_integrals[i] = integrate_cheb_polys(unique_orders[i])
@@ -1929,8 +1865,8 @@ function smolyak_clenshaw_curtis(f::Function,plan::SApproxPlan,pos::S) where {S<
 
     # Compute the unique polynomial terms from the base polynomials
 
-    unique_base_polynomials          = Array{Array{T,1},1}(undef,length(unique_orders))
-    unique_base_polynomial_integrals = Array{Array{T,1},1}(undef,length(unique_orders))
+    unique_base_polynomials          = Vector{Vector{T}}(undef,length(unique_orders))
+    unique_base_polynomial_integrals = Vector{Vector{T}}(undef,length(unique_orders))
     for i = length(unique_orders):-1:2
       unique_base_polynomials[i]          = base_polynomials[i][length(base_polynomials[i-1])+1:end]
       unique_base_polynomial_integrals[i] = base_polynomial_integrals[i][length(base_polynomial_integrals[i-1])+1:end]
@@ -1940,7 +1876,7 @@ function smolyak_clenshaw_curtis(f::Function,plan::SApproxPlan,pos::S) where {S<
 
     # Construct the first row of the interplation matrix
 
-    polynomials = Array{T,1}(undef,length(weights))
+    polynomials = Vector{T}(undef,length(weights))
 
     # Iterate over nodes, doing the above three steps at each iteration
 
@@ -2071,8 +2007,8 @@ function smolyak_grid_full(node_type::Function,d::S,mu::S,domain=[ones(1,d);-one
 
   # Create base nodes to be used in the sparse grid
 
-  base_nodes   = Array{Array{T,1},1}(undef,length(unique_node_number))
-  base_weights = Array{Array{T,1},1}(undef,length(unique_node_number))
+  base_nodes   = Vector{Vector{T}}(undef,length(unique_node_number))
+  base_weights = Vector{Vector{T}}(undef,length(unique_node_number))
   @inbounds for i in eachindex(unique_node_number)
     base_nodes[i] = node_type(unique_node_number[i])
   end
@@ -2091,7 +2027,7 @@ function smolyak_grid_full(node_type::Function,d::S,mu::S,domain=[ones(1,d);-one
 
   # Construct the sparse grid from the nodes
 
-  nodes = Array{T,2}(undef,determine_grid_size_full(multi_index_full))
+  nodes = Matrix{T}(undef,determine_grid_size_full(multi_index_full))
   l = 1
   for j in axes(multi_index_full,1)
     new_nodes = base_nodes[multi_index_full[j,1]]  # Here new_nodes is a 1d array
@@ -2109,7 +2045,7 @@ function smolyak_grid_full(node_type::Function,d::S,mu::S,domain=[ones(1,d);-one
 
 end
 
-function determine_grid_size_full(mi::AbstractArray{S,2}) where {S<:Integer} # Internal function, not exported
+function determine_grid_size_full(mi::AbstractMatrix{S}) where {S<:Integer} # Internal function, not exported
 
   temp = similar(mi)
 
@@ -2157,7 +2093,7 @@ julia> master_i = master_index(mi)
  22  5]
 ```
 """
-function master_index(multi_index::AbstractArray{S,2}) where {S<:Integer}
+function master_index(multi_index::AbstractMatrix{S}) where {S<:Integer}
 
   temp_ind   = similar(multi_index)
   master_ind = zeros(S,size(multi_index,1),2)
@@ -2201,7 +2137,7 @@ function cheb_poly(order::S,x::R) where {S<:Integer,R<:Real} # Internal function
 
 end
 
-function prod_cjs(max_grid::AbstractArray{T,2},min_grid::AbstractArray{T,2},poly_grid::AbstractArray{T,2}) where {T<:Real} # Internal function, not exported
+function prod_cjs(max_grid::AbstractMatrix{T},min_grid::AbstractMatrix{T},poly_grid::AbstractMatrix{T}) where {T<:Real} # Internal function, not exported
 
   cjs = ones(size(poly_grid))
 
@@ -2217,7 +2153,7 @@ function prod_cjs(max_grid::AbstractArray{T,2},min_grid::AbstractArray{T,2},poly
 
 end
 
-function compute_scale_factor(multi_index::AbstractArray{S,1}) where {S<:Integer} # Internal function, not exported
+function compute_scale_factor(multi_index::AbstractVector{S}) where {S<:Integer} # Internal function, not exported
 
   scale_factor = 1.0
 
@@ -2256,7 +2192,7 @@ julia> w = smolyak_weights_full(y,g,mi,[1.0 1.0; 0.0 0.0])
  [0.625, 0.49999999999999994, 0.12499999999999992, -1.6653345369377348e-16, 2.7755575615628914e-17]]
 ```
 """
-function smolyak_weights_full(y_f::AbstractArray{T,1},grid::AbstractArray{T,2},multi_index::AbstractArray{S,2},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {S<:Integer,T<:Real}
+function smolyak_weights_full(y_f::AbstractVector{T},grid::AbstractMatrix{T},multi_index::AbstractMatrix{S},domain=[ones(1,size(grid,2));-ones(1,size(grid,2))]) where {S<:Integer,T<:Real}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -2272,7 +2208,7 @@ function smolyak_weights_full(y_f::AbstractArray{T,1},grid::AbstractArray{T,2},m
   max_grid = maximum(grid,dims=1)
   min_grid = minimum(grid,dims=1)
 
-  weights = Array{Array{T,1},1}(undef,size(multi_index,1))
+  weights = Vector{Vector{T}}(undef,size(multi_index,1))
   g_ind = master_index(multi_index)
 
   @inbounds for i in axes(g_ind,1) # This loops over the number of polynomials
@@ -2324,7 +2260,7 @@ julia> yhat = smolyak_evaluate_full(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
 0.5953026581237829
 ```
 """
-function smolyak_evaluate_full(weights::Array{Array{T,1},1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {S<:Integer,R<:Real,T<:Real}
+function smolyak_evaluate_full(weights::Vector{Vector{T}},point::AbstractVector{R},multi_index::AbstractMatrix{S},domain=[ones(1,length(point));-ones(1,length(point))]) where {S<:Integer,R<:Real,T<:Real}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -2377,7 +2313,7 @@ function deriv_cheb_poly(order::S,x::R) where {S<:Integer,R<:Real} # Internal fu
 
 end
 
-function _smolyak_derivative_full(weights::Array{Array{T,1},1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},pos::S) where {S<:Integer,R<:Real,T<:Real} # Internal function, not exported
+function _smolyak_derivative_full(weights::Vector{Vector{T}},point::AbstractVector{R},multi_index::AbstractMatrix{S},pos::S) where {S<:Integer,R<:Real,T<:Real} # Internal function, not exported
 
   mi = sum(multi_index,dims=2)
   d  = size(multi_index,2)
@@ -2434,7 +2370,7 @@ julia> deriv2 = smolyak_derivative_full(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0],2)
 0.5250627466157655
 ```
 """
-function smolyak_derivative_full(weights::Array{Array{T,1},1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},domain::Union{AbstractArray{T,1},AbstractArray{T,2}},pos::S) where {S<:Integer,R<:Real,T<:Real}
+function smolyak_derivative_full(weights::Vector{Vector{T}},point::AbstractVector{R},multi_index::AbstractMatrix{S},domain::Union{AbstractVector{T},AbstractMatrix{T}},pos::S) where {S<:Integer,R<:Real,T<:Real}
 
   dom = check_domain(size(multi_index,2),domain)
 
@@ -2471,13 +2407,13 @@ julia> grad = smolyak_gradient_full(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
 [0.403682  0.525063]
 ```
 """
-function smolyak_gradient_full(weights::Array{Array{T,1},1},point::AbstractArray{R,1},multi_index::AbstractArray{S,2},domain=[ones(1,length(point));-ones(1,length(point))]) where {S<:Integer,R<:Real,T<:Real}
+function smolyak_gradient_full(weights::Vector{Vector{T}},point::AbstractVector{R},multi_index::AbstractMatrix{S},domain=[ones(1,length(point));-ones(1,length(point))]) where {S<:Integer,R<:Real,T<:Real}
 
   dom = check_domain(size(multi_index,2),domain)
 
   d = size(multi_index,2)
 
-  gradient = Array{R,2}(undef,1,d)
+  gradient = Matrix{R}(undef,1,d)
   for i = 1:d
     gradient[i] = smolyak_derivative_full(weights,point,multi_index,dom,i)
   end

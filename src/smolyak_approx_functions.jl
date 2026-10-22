@@ -404,6 +404,180 @@ function determine_grid_size(mi::AbstractArray{S,N}) where {S<:Integer,N} # Inte
 
 end
 
+# ---------------------------------------------------------------------------------------------------------------------
+# The Smolyak basis at a point, without Kronecker products (internal functions, not exported).
+#
+# The basis is ordered block by block (one block per row of the multi-index), and within a block as the Kronecker
+# product of the one-dimensional vectors of Chebyshev terms introduced at each dimension's level, the last dimension
+# fastest.  The one-dimensional terms come from a table Tab[n+1,i], the term of order n in dimension i: T_n(x_i) to
+# evaluate the polynomial, but equally T_n'(x_i), T_n''(x_i) or the integral of T_n over [-1,1], dimension by
+# dimension, for the derivatives, the hessian and the integrals.  In a dimension whose multi-index is one the vector
+# is the single term Tab[1,i] (order zero), so a block is Tab[1,i] multiplied over its INACTIVE dimensions times the
+# Kronecker product over its ACTIVE dimensions (multi-index > 1, at most mu of them).  Each basis function is
+# therefore a product of a few table entries, with index arithmetic in place of kron, and nothing is allocated inside
+# the loops.  For values Tab[1,i] = T_0 = 1, so the inactive factor is exactly one; for a derivative it is T_0' = 0 in
+# the differentiated dimension, and a block that is inactive there is skipped.  The ordering is identical to that of
+# the kron construction.
+# ---------------------------------------------------------------------------------------------------------------------
+
+_smolyak_newcount(L::Integer) = L == 1 ? 1 : (L == 2 ? 2 : 2^(L-2))  # polynomials introduced at level L
+_smolyak_offset(L::Integer)   = L == 1 ? 0 : m_i(L-1)                   # order of the first of them
+
+# Fill Tab[n+1,i] = T_n(x[i]) for n = 0..size(Tab,1)-1 (x already normalized to [-1,1])
+function _smolyak_chebyshev_table!(Tab::AbstractMatrix,x::AbstractVector)
+
+  maxorder = size(Tab,1) - 1
+  @inbounds for i in eachindex(x)
+    xi = x[i]
+    Tab[1,i] = one(xi)
+    maxorder >= 1 && (Tab[2,i] = xi)
+    for n = 3:maxorder+1
+      Tab[n,i] = 2*xi*Tab[n-1,i] - Tab[n-2,i]
+    end
+  end
+
+  return Tab
+
+end
+
+# Write the basis at the point whose Chebyshev table is Tab into p; act and idx are Int work vectors of length d
+function _smolyak_basis!(p::AbstractVector,Tab::AbstractMatrix,act::Vector{Int},idx::Vector{Int},multi_index::AbstractMatrix{S}) where {S<:Integer}
+
+  d = size(multi_index,2)
+
+  l = 1
+  @inbounds for j in axes(multi_index,1)
+    r = 0
+    m = 1
+    base = one(eltype(p))                       # the order-zero terms of the inactive dimensions
+    for i = 1:d
+      L = multi_index[j,i]
+      if L > 1
+        r += 1
+        act[r] = i
+        m *= _smolyak_newcount(L)
+      else
+        base *= Tab[1,i]
+      end
+    end
+    for e = 0:m-1
+      rem = e
+      for q = r:-1:1                            # last active dimension fastest, as in kron
+        c = _smolyak_newcount(multi_index[j,act[q]])
+        idx[q] = rem % c
+        rem ÷= c
+      end
+      v = base
+      for q = 1:r
+        a = act[q]
+        v *= Tab[_smolyak_offset(multi_index[j,a]) + idx[q] + 1,a]
+      end
+      p[l+e] = v
+    end
+    l += m
+  end
+
+  return p
+
+end
+
+# The same loop, accumulating weights'basis without storing the basis (for smolyak_evaluate, the derivatives, the
+# hessian and the integrals).  A block whose inactive factor is zero contributes nothing and is skipped.
+function _smolyak_basis_dot(weights::AbstractVector{T},Tab::AbstractMatrix{R},act::Vector{Int},idx::Vector{Int},multi_index::AbstractMatrix{S}) where {T<:Real,R<:Real,S<:Integer}
+
+  d = size(multi_index,2)
+
+  estimate = zero(promote_type(T,R))
+  l = 1
+  @inbounds for j in axes(multi_index,1)
+    r = 0
+    m = 1
+    base = one(R)
+    for i = 1:d
+      L = multi_index[j,i]
+      if L > 1
+        r += 1
+        act[r] = i
+        m *= _smolyak_newcount(L)
+      else
+        base *= Tab[1,i]
+      end
+    end
+    if iszero(base)
+      l += m
+      continue
+    end
+    for e = 0:m-1
+      rem = e
+      for q = r:-1:1
+        c = _smolyak_newcount(multi_index[j,act[q]])
+        idx[q] = rem % c
+        rem ÷= c
+      end
+      v = base
+      for q = 1:r
+        a = act[q]
+        v *= Tab[_smolyak_offset(multi_index[j,a]) + idx[q] + 1,a]
+      end
+      estimate += weights[l+e]*v
+    end
+    l += m
+  end
+
+  return estimate
+
+end
+
+# The TRANSPOSE of the interpolation matrix: column k is the basis at grid point k (grid already normalized).
+# Filling columns keeps the writes contiguous.  Serial and multi-threaded versions.
+function _smolyak_interpolation_matrix_transpose(grid::AbstractMatrix{T},multi_index::AbstractMatrix{S}) where {T<:Real,S<:Integer}
+
+  n, d = determine_grid_size(multi_index)
+  Bt   = Matrix{T}(undef,n,size(grid,1))
+  Tab  = Matrix{T}(undef,m_i(maximum(multi_index)),d)
+  act  = zeros(Int,d)
+  idx  = zeros(Int,d)
+
+  @inbounds for k in axes(grid,1)
+    _smolyak_chebyshev_table!(Tab,view(grid,k,:))
+    _smolyak_basis!(view(Bt,:,k),Tab,act,idx,multi_index)
+  end
+
+  return Bt
+
+end
+
+function _smolyak_interpolation_matrix_transpose_threaded(grid::AbstractMatrix{T},multi_index::AbstractMatrix{S}) where {T<:Real,S<:Integer}
+
+  n, d = determine_grid_size(multi_index)
+  Bt   = Matrix{T}(undef,n,size(grid,1))
+  maxo = m_i(maximum(multi_index))
+
+  @sync Threads.@threads for k in axes(grid,1)
+    Tab = Matrix{T}(undef,maxo,d)
+    act = zeros(Int,d)
+    idx = zeros(Int,d)
+    _smolyak_chebyshev_table!(Tab,view(grid,k,:))
+    _smolyak_basis!(view(Bt,:,k),Tab,act,idx,multi_index)
+  end
+
+  return Bt
+
+end
+
+# Transpose a square matrix in place
+function _smolyak_transpose_square!(A::AbstractMatrix)
+
+  @inbounds for c in axes(A,2)
+    for r = c+1:size(A,1)
+      A[r,c], A[c,r] = A[c,r], A[r,c]
+    end
+  end
+
+  return A
+
+end
+
 """
 Constructs a Smolyak approximation plan, given the ```node_type``` function, the number of dimensions, ```d```, the
 approximation layers, ```mu```, and the approximation ```domain``` (defaults to [-1.0,1.0]^d).  Returns an SApproxPlan
@@ -467,52 +641,12 @@ function smolyak_weights(y::AbstractVector{T},grid::AbstractMatrix{T},multi_inde
     grid[:,i] = normalize_node(grid[:,i],dom[:,i])
   end
 
-  interpolation_matrix = zeros(size(grid,1),size(grid,1))
+  # The interpolation matrix is built as its transpose (column k = the basis at grid point k), without Kronecker
+  # products; see _smolyak_basis!
 
-  unique_multi_index = sort(unique(multi_index))
-  unique_orders      = m_i.(unique_multi_index) .- 1
+  interpolation_matrix_transpose = _smolyak_interpolation_matrix_transpose(grid,multi_index)
 
-  # Below we do the following things:
-
-  #   Generate the polynomial terms for each order
-  #   Generate the unique polynomial terms introduced at each higher order
-  #   Combine the polynomial terms to construct a row of the interpolation matrix
-  #   Iterate over the grid, doing the above for steps at each iteration, to compute all rows of the interpolation matrix
-
-  base_polynomials        = Vector{Matrix{T}}(undef,length(unique_orders))
-  unique_base_polynomials = Vector{Matrix{T}}(undef,length(unique_orders))
-
-  @inbounds for k in axes(grid,1)
-
-    # Construct the base polynomials
-
-    for i in eachindex(unique_orders)
-      base_polynomials[i] = chebyshev_polynomial(unique_orders[i],grid[k,:])
-    end
-
-    # Compute the unique polynomial terms from the base polynomials
-
-    for i = length(unique_orders):-1:2
-      unique_base_polynomials[i] = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
-    end
-    unique_base_polynomials[1] = base_polynomials[1]
-
-    # Construct a row of the interplation matrix
-
-    l = 1
-    @inbounds @views for j in axes(multi_index,1)
-      new_polynomials = unique_base_polynomials[multi_index[j,1]][1,:]
-      for i = 2:size(multi_index,2)
-        new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][i,:])
-      end
-      m = length(new_polynomials)
-      interpolation_matrix[k,l:l+m-1] = new_polynomials
-      l += m
-    end
-
-  end
-
-  weights = interpolation_matrix\y
+  weights = transpose(interpolation_matrix_transpose)\y
 
   return weights
 
@@ -550,52 +684,12 @@ function smolyak_weights_threaded(y::AbstractVector{T},grid::AbstractMatrix{T},m
     grid[:,i] = normalize_node(grid[:,i],dom[:,i])
   end
 
-  interpolation_matrix = zeros(size(grid,1),size(grid,1))
+  # The interpolation matrix is built as its transpose (column k = the basis at grid point k), without Kronecker
+  # products, one grid point per thread; see _smolyak_basis!
 
-  unique_multi_index = sort(unique(multi_index))
-  unique_orders      = m_i.(unique_multi_index) .- 1
+  interpolation_matrix_transpose = _smolyak_interpolation_matrix_transpose_threaded(grid,multi_index)
 
-  # Below we do the following things:
-
-  #   Generate the polynomial terms for each order
-  #   Generate the unique polynomial terms introduced at each higher order
-  #   Combine the polynomial terms to construct a row of the interpolation matrix
-  #   Iterate over the grid, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
-
-  @inbounds @sync Threads.@threads for k in axes(grid,1)
-
-    base_polynomials        = Vector{Matrix{T}}(undef,length(unique_orders))
-    unique_base_polynomials = Vector{Matrix{T}}(undef,length(unique_orders))
-
-    # Construct the base polynomials
-
-    for i in eachindex(unique_orders)
-      base_polynomials[i] = chebyshev_polynomial(unique_orders[i],grid[k,:])
-    end
-
-    # Compute the unique polynomial terms from the base polynomials
-
-    for i = length(unique_orders):-1:2
-      unique_base_polynomials[i] = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
-    end
-    unique_base_polynomials[1] = base_polynomials[1]
-
-    # Construct a row of the interplation matrix
-
-    l = 1
-    @inbounds @views for j in axes(multi_index,1)
-      new_polynomials = unique_base_polynomials[multi_index[j,1]][1,:]
-      for i = 2:size(multi_index,2)
-        new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][i,:])
-      end
-      m = length(new_polynomials)
-      interpolation_matrix[k,l:l+m-1] = new_polynomials
-      l += m
-    end
-
-  end
-
-  weights = interpolation_matrix\y
+  weights = transpose(interpolation_matrix_transpose)\y
 
   return weights
 
@@ -658,52 +752,12 @@ function smolyak_inverse_interpolation_matrix(grid::AbstractMatrix{T},multi_inde
     grid[:,i] = normalize_node(grid[:,i],dom[:,i]) # allocates
   end
   
-  interpolation_matrix = zeros(size(grid,1),size(grid,1)) # allocates
+  # The interpolation matrix is built as its transpose (column k = the basis at grid point k), without Kronecker
+  # products; see _smolyak_basis!.  inv(B) = transpose(inv(transpose(B))), and the final transpose is done in
+  # place, so the peak memory is that of the matrix and its inverse, as before.
 
-  unique_multi_index = sort(unique(multi_index))
-  unique_orders      = m_i.(unique_multi_index) .- 1
-
-  # Below we do the following things:
-
-  #   Generate the polynomial terms for each order
-  #   Generate the unique polynomial terms introduced at each higher order
-  #   Combine the polynomial terms to construct a row of the interpolation matrix
-  #   Iterate over the grid, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
-
-  base_polynomials        = Vector{Matrix{T}}(undef,length(unique_orders)) # allocates
-  unique_base_polynomials = Vector{Matrix{T}}(undef,length(unique_orders)) # allocates
-
-  @inbounds for k in axes(grid,1)
-
-    # Construct the base polynomials
-
-    for i in eachindex(unique_orders)
-      base_polynomials[i] = chebyshev_polynomial(unique_orders[i],grid[k,:])
-    end
-
-    # Compute the unique polynomial terms from the base polynomials
-
-    for i = length(unique_orders):-1:2
-      unique_base_polynomials[i] = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
-    end
-    unique_base_polynomials[1] = base_polynomials[1]
-
-    # Construct the first row of the interplation matrix
-
-    l = 1
-    @inbounds @views for j in axes(multi_index,1)
-      new_polynomials = unique_base_polynomials[multi_index[j,1]][1,:]
-      for i = 2:size(multi_index,2)
-        new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][i,:])
-      end
-      m = length(new_polynomials)
-      interpolation_matrix[k,l:l+m-1] = new_polynomials
-      l += m
-    end
-
-  end
-
-  inverse_interpolation_matrix = inv(interpolation_matrix)
+  inverse_interpolation_matrix = inv(_smolyak_interpolation_matrix_transpose(grid,multi_index))
+  _smolyak_transpose_square!(inverse_interpolation_matrix)
 
   return inverse_interpolation_matrix
 
@@ -738,52 +792,12 @@ function smolyak_inverse_interpolation_matrix_threaded(grid::AbstractMatrix{T},m
     grid[:,i] = normalize_node(grid[:,i],dom[:,i])
   end
 
-  interpolation_matrix = zeros(size(grid,1),size(grid,1))
+  # The interpolation matrix is built as its transpose (column k = the basis at grid point k), without Kronecker
+  # products, one grid point per thread; see _smolyak_basis!.  inv(B) = transpose(inv(transpose(B))), and the
+  # final transpose is done in place, so the peak memory is that of the matrix and its inverse, as before.
 
-  unique_multi_index = sort(unique(multi_index))
-  unique_orders      = m_i.(unique_multi_index) .- 1
-
-  # Below we do the following things:
-
-  #   Generate the polynomial terms for each order
-  #   Generate the unique polynomial terms introduced at each higher order
-  #   Combine the polynomial terms to construct a row of the interpolation matrix
-  #   Iterate over the grid, doing the above three steps at each iteration, to compute all rows of the interpolation matrix
-
-  @inbounds @sync Threads.@threads for k in axes(grid,1)
-
-    base_polynomials        = Vector{Matrix{T}}(undef,length(unique_orders))
-    unique_base_polynomials = Vector{Matrix{T}}(undef,length(unique_orders))
-
-    # Construct the base polynomials
-
-    for i in eachindex(unique_orders)
-      base_polynomials[i] = chebyshev_polynomial(unique_orders[i],grid[k,:])
-    end
-
-    # Compute the unique polynomial terms from the base polynomials
-
-    for i = length(unique_orders):-1:2
-      unique_base_polynomials[i] = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
-    end
-    unique_base_polynomials[1] = base_polynomials[1]
-
-    # Construct the first row of the interplation matrix
-
-    l = 1
-    @inbounds @views for j in axes(multi_index,1)
-      new_polynomials = unique_base_polynomials[multi_index[j,1]][1,:]
-      for i = 2:size(multi_index,2)
-        new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][i,:])
-      end
-      m = length(new_polynomials)
-      interpolation_matrix[k,l:l+m-1] = new_polynomials
-      l += m
-    end
-
-  end
-
-  inverse_interpolation_matrix = inv(interpolation_matrix)
+  inverse_interpolation_matrix = inv(_smolyak_interpolation_matrix_transpose_threaded(grid,multi_index))
+  _smolyak_transpose_square!(inverse_interpolation_matrix)
 
   return inverse_interpolation_matrix
 
@@ -963,51 +977,146 @@ function smolyak_polynomial(point::AbstractVector{R},multi_index::AbstractMatrix
       
   point = copy(point)
   for i in eachindex(point)
-    point[i] = normalize_node(point[i],domain[:,i])
-  end
-  unique_multi_index = sort(unique(multi_index))
-  unique_orders = m_i.(unique_multi_index) .- 1
-
-  # Below we do the following things:
-
-  #   Generate the polynomial terms for each order
-  #   Generate the unique polynomial terms introduced at each higher order
-  #   Combine the polynomial terms to construct the Smolyak polynomial
-
-  # Here we construct the base polynomials
-
-  base_polynomials = Vector{Matrix{R}}(undef,length(unique_orders))
-  for i in eachindex(unique_orders)
-    base_polynomials[i] = chebyshev_polynomial(unique_orders[i],point)
+    point[i] = normalize_node(point[i],dom[:,i])
   end
 
-  # Compute the unique polynomial terms from the base polynomials
+  # The Chebyshev polynomials at the point, then the basis without Kronecker products; see _smolyak_basis!
 
-  unique_base_polynomials = Vector{Matrix{R}}(undef,length(unique_orders))
-  for i = length(unique_orders):-1:2
-    unique_base_polynomials[i] = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
-  end
-  unique_base_polynomials[1] = base_polynomials[1]
+  n, d = determine_grid_size(multi_index)
+  Tab  = Matrix{R}(undef,m_i(maximum(multi_index)),d)
+  _smolyak_chebyshev_table!(Tab,point)
 
-  # Construct the first row of the interplation matrix
+  polynomial = Vector{R}(undef,n)
+  _smolyak_basis!(polynomial,Tab,zeros(Int,d),zeros(Int,d),multi_index)
+
+  return polynomial
+
+end
+
+"""
+Computes the derivatives of the basis functions in a Smolyak polynomial with respect to each variable, given the
+```point```, the ```multi-index```, and the approximation ```domain``` (defaults to [-1.0,1.0]^d).  Returns an
+n x d matrix whose column i is the derivative, with respect to variable i, of the vector returned by
+```smolyak_polynomial``` (same ordering of basis functions; derivatives are with respect to the variables on
+```domain```, not on [-1.0,1.0]).
+
+Given weights ```w``` (a vector, or a matrix with one column per function), ```transpose(w)*D``` is the gradient
+(or the Jacobian) of the approximated function(s), so the basis derivatives are computed once and reused for any
+number of functions sharing the same multi-index and domain.
+
+Signatures
+==========
+
+D = smolyak_polynomial_derivative(point,multi_index)
+D = smolyak_polynomial_derivative(point,multi_index,domain)
+
+Example
+=======
+```
+julia> g,mi = smolyak_grid(chebyshev_extrema,2,2,[1.0 1.0; 0.0 0.0])
+julia> y = g[:,1].^0.3.*g[:,2].^0.7
+julia> w = smolyak_weights(y,g,mi,[1.0 1.0; 0.0 0.0])
+julia> D = smolyak_polynomial_derivative([0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
+julia> grad = transpose(w)*D
+[0.403682  0.525063]
+```
+"""
+function smolyak_polynomial_derivative(point::AbstractVector{R},multi_index::AbstractMatrix{S},domain=[ones(1,length(point));-ones(1,length(point))]) where {R<:Real,S<:Integer}
+
+  dom = check_domain(size(multi_index,2),domain)
+  d   = size(multi_index,2)
 
   n = determine_grid_size(multi_index)
-  polynomial = Vector{R}(undef,n[1])
+  derivatives = zeros(R,n[1],d)
 
-  # Iterate over grid, doing the above three steps at each iteration
+  _smolyak_basis_derivatives((row,var,value) -> (@inbounds derivatives[row,var] = value),point,multi_index,dom)
+
+  return derivatives
+
+end
+
+# The engine behind smolyak_polynomial_derivative and smolyak_gradient.  It calls
+# sink(row,var,value) once for every NONZERO derivative: value is the derivative, with respect to variable var
+# (on the domain), of basis function row of smolyak_polynomial.
+#
+# Within a block of the multi-index the basis functions are the Kronecker product of one-dimensional vectors, the
+# Chebyshev polynomials introduced at that dimension's level.  In a dimension where the multi-index is one the
+# vector is [T_0] = [1], so the block is the Kronecker product over its active dimensions alone, in increasing order
+# with the last fastest (the ordering of smolyak_polynomial).  The derivative with respect to an active dimension
+# replaces that dimension's factor by its derivative; with respect to an inactive dimension it is zero.  So each
+# block costs (number of entries) x (number of active dimensions)^2 multiplications -- at most mu^2 per entry --
+# and nothing is allocated inside the loop: the one-dimensional values are read from the base-polynomial tables
+# through a column offset instead of being copied or combined with kron.
+
+function _smolyak_basis_derivatives(sink::F,point::AbstractVector{R},multi_index::AbstractMatrix{S},dom::AbstractMatrix) where {F,R<:Real,S<:Integer}
+
+  d = size(multi_index,2)
+
+  # Normalize point to the [1.0,-1.0]^d interval
+
+  point = copy(point)
+  for i in eachindex(point)
+    point[i] = normalize_node(point[i],dom[:,i])
+  end
+
+  unique_multi_index = sort(unique(multi_index))
+  unique_orders = m_i.(unique_multi_index) .- 1
+  nlev = length(unique_orders)
+
+  # Base polynomials and their derivatives at every level (d x (order+1) each), and the column at which the
+  # polynomials NEW at each level start
+
+  base   = Vector{Matrix{R}}(undef,nlev)
+  dbase  = Vector{Matrix{R}}(undef,nlev)
+  offset = zeros(Int,nlev)
+  for i in 1:nlev
+    base[i]  = chebyshev_polynomial(unique_orders[i],point)
+    dbase[i] = chebyshev_polynomial_deriv(unique_orders[i],point)
+    i > 1 && (offset[i] = size(base[i-1],2))
+  end
+
+  scale = [2.0/(dom[1,i]-dom[2,i]) for i = 1:d]
+
+  active = zeros(Int,d)   # the active dimensions of a block
+  sizes  = zeros(Int,d)   # the number of new polynomials in each
+  idx    = zeros(Int,d)   # the position within each, for one entry of the block
 
   l = 1
   @inbounds for j in axes(multi_index,1)
-    new_polynomials = unique_base_polynomials[multi_index[j,1]][1,:]
-    for i = 2:size(multi_index,2)
-      new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][i,:])
+    r = 0
+    m = 1
+    for i = 1:d
+      L = multi_index[j,i]
+      if L > 1
+        r += 1
+        active[r] = i
+        sizes[r]  = size(base[L],2) - offset[L]
+        m *= sizes[r]
+      end
     end
-    m = length(new_polynomials)
-    polynomial[l:l+m-1] = new_polynomials
+    if r == 0                # the constant term: every derivative is zero
+      l += 1
+      continue
+    end
+    for k = 0:m-1
+      rem = k
+      for q = r:-1:1         # last active dimension fastest, as in kron
+        idx[q] = rem % sizes[q] + 1
+        rem ÷= sizes[q]
+      end
+      for q = 1:r
+        value = one(R)
+        for t = 1:r
+          a = active[t]; L = multi_index[j,a]
+          value *= t == q ? dbase[L][a,offset[L]+idx[t]] : base[L][a,offset[L]+idx[t]]
+        end
+        sink(l+k,active[q],value*scale[active[q]])
+      end
+    end
     l += m
   end
 
-  return polynomial
+  return nothing
 
 end
 
@@ -1040,55 +1149,18 @@ function smolyak_evaluate(weights::AbstractVector{T},point::AbstractVector{R},mu
 
   point = copy(point)
   for i in eachindex(point)
-    point[i] = normalize_node(point[i],domain[:,i])
+    point[i] = normalize_node(point[i],dom[:,i])
   end
 
-  unique_multi_index = sort(unique(multi_index))
-  unique_orders = m_i.(unique_multi_index) .- 1
-  
-  # Below we do the following things:
-  
-  #   Generate the polynomial terms for each order
-  #   Generate the unique polynomial terms introduced at each higher order
-  #   Combine the polynomial terms to construct the Smolyak polynomial
-  
-  # Here we construct the base polynomials
-  
-  base_polynomials = Vector{Matrix{R}}(undef,length(unique_orders))
-  for i in eachindex(unique_orders)
-    base_polynomials[i] = chebyshev_polynomial(unique_orders[i],point)
-  end
-  
-  # Compute the unique polynomial terms from the base polynomials
-  
-  unique_base_polynomials = Vector{Matrix{R}}(undef,length(unique_orders))
-  for i = length(unique_orders):-1:2
-    unique_base_polynomials[i] = base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
-  end
-  unique_base_polynomials[1] = base_polynomials[1]
-  
-  # Construct the first row of the interplation matrix
-  
-  polynomials = Vector{R}(undef,length(weights))
-  
-  # Iterate over grid, doing the above three steps at each iteration
-  
-  l = 1
-  @inbounds for j in axes(multi_index,1)
-    new_polynomials = unique_base_polynomials[multi_index[j,1]][1,:]
-    for i = 2:size(multi_index,2)
-      new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][i,:])
-    end
-    m = length(new_polynomials)
-    polynomials[l:l+m-1] = new_polynomials
-    l += m
-  end
-  
-  estimate = zero(T)
-  for i in eachindex(polynomials)
-    estimate += polynomials[i]*weights[i]
-  end
-  
+  # The Chebyshev polynomials at the point, then weights'basis accumulated directly, without Kronecker products
+  # and without storing the basis; see _smolyak_basis_dot
+
+  d   = size(multi_index,2)
+  Tab = Matrix{R}(undef,m_i(maximum(multi_index)),d)
+  _smolyak_chebyshev_table!(Tab,point)
+
+  estimate = _smolyak_basis_dot(weights,Tab,zeros(Int,d),zeros(Int,d),multi_index)
+
   return estimate
   
 end
@@ -1290,52 +1362,16 @@ end
 
 function _smolyak_derivative(weights::AbstractVector{T},point::AbstractVector{R},multi_index::AbstractMatrix{S},pos::S) where {T<:Real,R<:Real,S<:Integer} # Internal function, not exported
 
-  unique_multi_index = sort(unique(multi_index))
-  unique_orders = m_i.(unique_multi_index) .- 1
+  # The table of one-dimensional terms: T_n(x_i) in every dimension except pos, T_n'(x_pos) in dimension pos.
+  # Blocks that are inactive in dimension pos (factor T_0' = 0) are skipped; see _smolyak_basis_dot.
 
-  # Construct the base polynomials
+  d        = size(multi_index,2)
+  maxorder = m_i(maximum(multi_index)) - 1
 
-  base_polynomials            = Vector{Matrix{R}}(undef,length(unique_orders))
-  base_polynomial_derivatives = Vector{Matrix{R}}(undef,length(unique_orders))
-  for i in eachindex(unique_orders)
-    base_polynomials[i]            = chebyshev_polynomial(unique_orders[i],point)
-    base_polynomial_derivatives[i] = chebyshev_polynomial_deriv(unique_orders[i],point)
-  end
+  Tab = permutedims(chebyshev_polynomial(maxorder,point))
+  Tab[:,pos] .= view(chebyshev_polynomial_deriv(maxorder,point),pos,:)
 
-  # Compute the unique polynomial terms (views avoid column-slice copies)
-
-  unique_base_polynomials            = Vector{Matrix{R}}(undef,length(unique_orders))
-  unique_base_polynomial_derivatives = Vector{Matrix{R}}(undef,length(unique_orders))
-  unique_base_polynomials[1]            = base_polynomials[1]
-  unique_base_polynomial_derivatives[1] = base_polynomial_derivatives[1]
-  for i = 2:length(unique_orders)
-    unique_base_polynomials[i]            = @view base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
-    unique_base_polynomial_derivatives[i] = @view base_polynomial_derivatives[i][:,size(base_polynomial_derivatives[i-1],2)+1:end]
-  end
-
-  # Accumulate evaluated_derivative directly, eliminating the intermediate polynomials array
-
-  evaluated_derivative = zero(T)
-  l = 1
-  @inbounds @views for j in axes(multi_index,1)
-    if pos == 1
-      new_polynomials = unique_base_polynomial_derivatives[multi_index[j,1]][1,:]
-    else
-      new_polynomials = unique_base_polynomials[multi_index[j,1]][1,:]
-    end
-    for i = 2:size(multi_index,2)
-      if pos == i
-        new_polynomials = kron(new_polynomials,unique_base_polynomial_derivatives[multi_index[j,i]][i,:])
-      else
-        new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][i,:])
-      end
-    end
-    m = length(new_polynomials)
-    for n in 1:m
-      evaluated_derivative += new_polynomials[n]*weights[l+n-1]
-    end
-    l += m
-  end
+  evaluated_derivative = _smolyak_basis_dot(weights,Tab,zeros(Int,d),zeros(Int,d),multi_index)
 
   return evaluated_derivative
 
@@ -1403,19 +1439,15 @@ julia> grad = smolyak_gradient(w,[0.37,0.71],mi,[1.0 1.0; 0.0 0.0])
 """
 function smolyak_gradient(weights::AbstractVector{T},point::AbstractVector{R},multi_index::AbstractMatrix{S},domain=[ones(1,length(point));-ones(1,length(point))]) where {T<:Real,R<:Real,S<:Integer}
 
+  # One pass over the basis for all d variables, accumulating weight x derivative directly (previously
+  # _smolyak_derivative rebuilt the base polynomials and every Kronecker product once per variable)
+
   dom = check_domain(size(multi_index,2),domain)
 
-  point = copy(point)
-  for i in eachindex(point)
-    point[i] = normalize_node(point[i],dom[:,i])
-  end
-
   d = length(point)
-  gradient = Matrix{R}(undef,1,d)
+  gradient = zeros(promote_type(T,R),1,d)
 
-  for i = 1:d
-    gradient[i] = _smolyak_derivative(weights,point,multi_index,i) * (2.0/(dom[1,i]-dom[2,i]))
-  end
+  _smolyak_basis_derivatives((row,var,value) -> (@inbounds gradient[var] += weights[row]*value),point,multi_index,dom)
 
   return gradient
 
@@ -1529,64 +1561,33 @@ function smolyak_hessian(weights::AbstractVector{T},point::AbstractVector{R},mul
     point[i] = normalize_node(point[i],dom[:,i])
   end
 
-  unique_multi_index = sort(unique(multi_index))
-  unique_orders = m_i.(unique_multi_index) .- 1
+  # Tables of the one-dimensional terms and their first and second derivatives, (order+1) x d
 
-  # Construct the base polynomials
+  maxorder = m_i(maximum(multi_index)) - 1
 
-  base_polynomials                = Vector{Matrix{R}}(undef,length(unique_orders))
-  base_polynomial_derivatives     = Vector{Matrix{R}}(undef,length(unique_orders))
-  base_polynomial_sec_derivatives = Vector{Matrix{R}}(undef,length(unique_orders))
-  for i in eachindex(unique_orders)
-    base_polynomials[i]                = chebyshev_polynomial(unique_orders[i],point)
-    base_polynomial_derivatives[i]     = chebyshev_polynomial_deriv(unique_orders[i],point)
-    base_polynomial_sec_derivatives[i] = chebyshev_polynomial_sec_deriv(unique_orders[i],point)
-  end
+  Tab   = permutedims(chebyshev_polynomial(maxorder,point))
+  dTab  = permutedims(chebyshev_polynomial_deriv(maxorder,point))
+  d2Tab = permutedims(chebyshev_polynomial_sec_deriv(maxorder,point))
 
-  # Compute the unique polynomial terms (views avoid column-slice copies)
+  hess = Matrix{promote_type(T,R)}(undef,d,d)
 
-  unique_base_polynomials                = Vector{Matrix{R}}(undef,length(unique_orders))
-  unique_base_polynomial_derivatives     = Vector{Matrix{R}}(undef,length(unique_orders))
-  unique_base_polynomial_sec_derivatives = Vector{Matrix{R}}(undef,length(unique_orders))
-  unique_base_polynomials[1]                = base_polynomials[1]
-  unique_base_polynomial_derivatives[1]     = base_polynomial_derivatives[1]
-  unique_base_polynomial_sec_derivatives[1] = base_polynomial_sec_derivatives[1]
-  for i = 2:length(unique_orders)
-    unique_base_polynomials[i]                = @view base_polynomials[i][:,size(base_polynomials[i-1],2)+1:end]
-    unique_base_polynomial_derivatives[i]     = @view base_polynomial_derivatives[i][:,size(base_polynomial_derivatives[i-1],2)+1:end]
-    unique_base_polynomial_sec_derivatives[i] = @view base_polynomial_sec_derivatives[i][:,size(base_polynomial_sec_derivatives[i-1],2)+1:end]
-  end
+  # For entry (r,c) the table uses T_n'' in dimension r when r = c, T_n' in dimensions r and c when r != c, and T_n
+  # elsewhere; blocks inactive in r or c contribute nothing and are skipped (see _smolyak_basis_dot).  Exploit
+  # symmetry: compute the upper triangle and mirror it.
 
-  hess = Matrix{T}(undef,d,d)
-
-  # Exploit symmetry: compute upper triangle and mirror; eliminates ~half the inner-loop work
+  work = similar(Tab)
+  act  = zeros(Int,d)
+  idx  = zeros(Int,d)
   for r = 1:d
     for c = r:d
-      evaluated_derivative = zero(T)
-      l = 1
-      @inbounds @views for j in axes(multi_index,1)
-        if 1 == r == c
-          new_polynomials = unique_base_polynomial_sec_derivatives[multi_index[j,1]][1,:]
-        elseif 1 == r || 1 == c
-          new_polynomials = unique_base_polynomial_derivatives[multi_index[j,1]][1,:]
-        else
-          new_polynomials = unique_base_polynomials[multi_index[j,1]][1,:]
-        end
-        for i = 2:size(multi_index,2)
-          if i == r == c
-            new_polynomials = kron(new_polynomials,unique_base_polynomial_sec_derivatives[multi_index[j,i]][i,:])
-          elseif i == r || i == c
-            new_polynomials = kron(new_polynomials,unique_base_polynomial_derivatives[multi_index[j,i]][i,:])
-          else
-            new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][i,:])
-          end
-        end
-        m = length(new_polynomials)
-        for n in 1:m
-          evaluated_derivative += new_polynomials[n]*weights[l+n-1]
-        end
-        l += m
+      copyto!(work,Tab)
+      if r == c
+        work[:,r] .= view(d2Tab,:,r)
+      else
+        work[:,r] .= view(dTab,:,r)
+        work[:,c] .= view(dTab,:,c)
       end
+      evaluated_derivative = _smolyak_basis_dot(weights,work,act,idx,multi_index)
       hess[r,c] = evaluated_derivative*(2.0/(dom[1,r]-dom[2,r]))*(2.0/(dom[1,c]-dom[2,c]))
       hess[c,r] = hess[r,c]  # Hessian is symmetric
     end
@@ -1707,9 +1708,9 @@ Example
 julia> f(x) = sum(x.^2)
 julia> splan = smolyak_plan(chebyshev_extrema,4,8,[ones(1,4); zeros(1,4)])
 julia> integral = smolyak_integrate(f,splan,:clenshaw_curtis)
-1.3333333333333328
+1.3333333333333321
 julia> integral = smolyak_integrate(f,splan,:gauss_chebyshev_quad)
-1.3318637929187602
+1.331863792918749
 ```
 """
 function smolyak_integrate(f::Function,plan::SApproxPlan,method::Symbol)
@@ -1741,7 +1742,7 @@ Example
 julia> f(x) = sum(x.^2)
 julia> splan = smolyak_plan(chebyshev_extrema,4,8,[ones(1,4); zeros(1,4)])
 julia> integral = smolyak_clenshaw_curtis(f,splan)
-1.3333333333333328
+1.3333333333333321
 ```
 """
 function smolyak_clenshaw_curtis(f::Function,plan::SApproxPlan)
@@ -1757,50 +1758,17 @@ function smolyak_clenshaw_curtis(f::Function,plan::SApproxPlan)
 
   weights = smolyak_weights(y,grid,multi_index,domain)
 
-  # Uses Clenshaw-Curtis to integrate over all dimensions
-
-  unique_multi_index = sort(unique(multi_index))
-  unique_orders = m_i.(unique_multi_index) .- 1
-
-  # Here we construct the base polynomials
+  # Uses Clenshaw-Curtis to integrate over all dimensions: the integral of each basis function is the product of the
+  # one-dimensional integrals of its Chebyshev terms over [-1,1], so the table holds those integrals in every
+  # dimension (the order-zero integral, 2, is the factor of the inactive dimensions); see _smolyak_basis_dot
 
   T = eltype(grid)
+  d = size(multi_index,2)
 
-  base_polynomial_integrals = Vector{Vector{T}}(undef,length(unique_orders))
-  for i in eachindex(unique_orders)
-    base_polynomial_integrals[i] = integrate_cheb_polys(unique_orders[i])
-  end
+  integrals = integrate_cheb_polys(m_i(maximum(multi_index)) - 1)
+  Tab       = repeat(T.(integrals),1,d)
 
-  # Compute the unique polynomial terms from the base polynomials
-
-  unique_base_polynomial_integrals = Vector{Vector{T}}(undef,length(unique_orders))
-  for i = length(unique_orders):-1:2
-    unique_base_polynomial_integrals[i] = base_polynomial_integrals[i][length(base_polynomial_integrals[i-1])+1:end]
-  end
-  unique_base_polynomial_integrals[1] = base_polynomial_integrals[1]
-
-  # Construct the first row of the interplation matrix
-
-  polynomials = Vector{T}(undef,length(weights))
-
-  # Iterate over nodes, doing the above three steps at each iteration
-
-  l = 1
-  @inbounds for j in axes(multi_index,1)
-    new_polynomials = unique_base_polynomial_integrals[multi_index[j,1]][:]
-    for i = 2:size(multi_index,2)
-      new_polynomials = kron(new_polynomials,unique_base_polynomial_integrals[multi_index[j,i]][:])
-    end
-    m = length(new_polynomials)
-    polynomials[l:l+m-1] = new_polynomials
-    l += m
-  end
-
-  evaluated_integral = zero(T)
-
-  for i in eachindex(polynomials)
-    evaluated_integral += polynomials[i]*weights[i]
-  end
+  evaluated_integral = _smolyak_basis_dot(weights,Tab,zeros(Int,d),zeros(Int,d),multi_index)
 
   scale_factor = (domain[1,1]-domain[2,1])/2
   for i in 2:size(multi_index,2)
@@ -1827,7 +1795,7 @@ julia> f(x) = sum(x.^2)
 julia> splan = smolyak_plan(chebyshev_extrema,4,8,[ones(1,4); zeros(1,4)])
 julia> integral = smolyak_clenshaw_curtis(f,splan,4)
 julia> integral(0.5)
-1.2499999999999996
+1.2499999999999987
 ```
 """
 function smolyak_clenshaw_curtis(f::Function,plan::SApproxPlan,pos::S) where {S<:Integer}
@@ -1849,61 +1817,17 @@ function smolyak_clenshaw_curtis(f::Function,plan::SApproxPlan,pos::S) where {S<
     
     point = normalize_node(point,domain[:,pos])
 
-    unique_multi_index = sort(unique(multi_index))
-    unique_orders = m_i.(unique_multi_index) .- 1
+    # The table holds the integrals of the Chebyshev terms over [-1,1] in every dimension except pos, and the
+    # Chebyshev polynomials at the point in dimension pos; see _smolyak_basis_dot
 
-    # Here we construct the base polynomials
+    T = promote_type(eltype(grid),R)
+    d = size(multi_index,2)
+    maxorder = m_i(maximum(multi_index)) - 1
 
-    T = eltype(grid)
+    Tab = repeat(T.(integrate_cheb_polys(maxorder)),1,d)
+    Tab[:,pos] .= vec(chebyshev_polynomial(maxorder,point))
 
-    base_polynomials          = Vector{Vector{T}}(undef,length(unique_orders))
-    base_polynomial_integrals = Vector{Vector{T}}(undef,length(unique_orders))
-    for i in eachindex(unique_orders)
-      base_polynomials[i]          = chebyshev_polynomial(unique_orders[i],point)[:]
-      base_polynomial_integrals[i] = integrate_cheb_polys(unique_orders[i])
-    end
-
-    # Compute the unique polynomial terms from the base polynomials
-
-    unique_base_polynomials          = Vector{Vector{T}}(undef,length(unique_orders))
-    unique_base_polynomial_integrals = Vector{Vector{T}}(undef,length(unique_orders))
-    for i = length(unique_orders):-1:2
-      unique_base_polynomials[i]          = base_polynomials[i][length(base_polynomials[i-1])+1:end]
-      unique_base_polynomial_integrals[i] = base_polynomial_integrals[i][length(base_polynomial_integrals[i-1])+1:end]
-    end
-    unique_base_polynomials[1]          = base_polynomials[1]
-    unique_base_polynomial_integrals[1] = base_polynomial_integrals[1]
-
-    # Construct the first row of the interplation matrix
-
-    polynomials = Vector{T}(undef,length(weights))
-
-    # Iterate over nodes, doing the above three steps at each iteration
-
-    l = 1
-    @inbounds for j in axes(multi_index,1)
-      if pos == 1
-        new_polynomials = unique_base_polynomials[multi_index[j,1]][:]
-      else
-        new_polynomials = unique_base_polynomial_integrals[multi_index[j,1]][:]
-      end
-      for i = 2:size(multi_index,2)
-        if pos == i
-          new_polynomials = kron(new_polynomials,unique_base_polynomials[multi_index[j,i]][:])
-        else
-          new_polynomials = kron(new_polynomials,unique_base_polynomial_integrals[multi_index[j,i]][:])
-        end
-      end
-      m = length(new_polynomials)
-      polynomials[l:l+m-1] = new_polynomials
-      l += m
-    end
-
-    evaluated_integral = zero(T)
-
-    for i in eachindex(polynomials)
-      evaluated_integral += polynomials[i]*weights[i]
-    end
+    evaluated_integral = _smolyak_basis_dot(weights,Tab,zeros(Int,d),zeros(Int,d),multi_index)
 
     scale_factor = 1.0
     for i in 1:size(multi_index,2)
@@ -1935,7 +1859,7 @@ Example
 julia> f(x) = sum(x.^2)
 julia> splan = smolyak_plan(chebyshev_extrema,4,8,[ones(1,4); zeros(1,4)])
 julia> integral = smolyak_gauss_chebyshev_quad(f,splan)
-1.3318637929187602
+1.331863792918749
 ```
 """
 function smolyak_gauss_chebyshev_quad(f::Function,plan::SApproxPlan)
@@ -2232,7 +2156,7 @@ function smolyak_weights_full(y_f::AbstractVector{T},grid::AbstractMatrix{T},mul
       scale_factor = compute_scale_factor(multi_index[i,:])
       ws[l] = scale_factor*(1/cjs_prod[l])*ws[l]
     end
-    weights[i] = (-1)^(d+mu-mi[i])*factorial(d-1)/(factorial(d+mu-mi[i])*factorial(-1-mu+mi[i]))*ws
+    weights[i] = (-1)^(d+mu-mi[i])*binomial(d-1,d+mu-mi[i])*ws
   end
 
   return weights
@@ -2281,7 +2205,7 @@ function smolyak_evaluate_full(weights::Vector{Vector{T}},point::AbstractVector{
       end
       evaluated_polynomials[i] += temp
     end
-    #evaluated_polynomials[i] *= (-1)^(d+mu-mi[i])*factorial(d-1)/(factorial(d+mu-mi[i])*factorial(-1-mu+mi[i]))
+    #evaluated_polynomials[i] *= (-1)^(d+mu-mi[i])*binomial(d-1,d+mu-mi[i])
   end
 
   return sum(evaluated_polynomials)
@@ -2338,7 +2262,7 @@ function _smolyak_derivative_full(weights::Vector{Vector{T}},point::AbstractVect
       end
       evaluated_polynomials[i] += temp
     end
-    #evaluated_polynomials[i] *= (-1)^(d+mu-mi[i])*factorial(d-1)/(factorial(d+mu-mi[i])*factorial(-1-mu+mi[i]))
+    #evaluated_polynomials[i] *= (-1)^(d+mu-mi[i])*binomial(d-1,d+mu-mi[i])
   end
 
   evaluated_derivative = sum(evaluated_polynomials)
